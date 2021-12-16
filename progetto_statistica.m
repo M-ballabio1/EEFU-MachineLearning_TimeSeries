@@ -34,6 +34,36 @@ legend('Prod. Combustibili Fossili (Non Rinnovabile) TOT','Prod. Carbone','Prod.
 grid minor
 saveas(f2,[pwd '\immagini\2.ConfrontoProduzioneNonRinnovabili.png'])
 
+%% commento F2: 
+% l'andamendo colorato in blu è la somma dei tre andamenti nella parte
+% bassa del grafico e rappresenta la produzione totale di fonti di energia
+% non rinnovabili. Allo stesso modo l'andamento in verde, come indicato in
+% legenda, mostra l'andamento del consumo delle fonti di energia non
+% rinnovabili. è immediato notare che il consumo è superiore alla
+% produzione e per sopperire a questa mancanza gli stati uniti ricorrono
+% all'importazione di combustibili fossili da paesi esteri membri
+% dell'OPEC. Tuttavia in questi ultimi anni la produzione supera il consumo.
+% gli stati uniti sono il paese che consume più petrolio al mondo, esso
+% copre circa il 35% della domanda interna di energia e viene utilizzato
+% soprattutto nel settore dei trasporti e dell'industria. 
+% Da una prima analisi è possibile notare che dal 1975 al 2010 
+% sono visibili andamenti più o meno regolari, tranne quello della produzione 
+% del petrolio greggio che ha subito una lenta decrescita. Dal 2010 ai 
+% giorni nostri è in decrescita la produzione di carbone in quanto il suo 
+% utilizzo,soprattutto per produrre elettricità, è stato sostituito
+% dall'utilizzo di liquidi derivanti dal petrolio e dall'utilizzo di fonti
+% rinnovabili. La produzione di Petrolio Greggio dal 2010 ad oggi è quasi 
+% duplicata; gli stati uniti sono infatti il terzo produttore al mondo di 
+% greggio. Anche per quanto riguarda la produzione di gas naturale è possibile
+% notare che dal 2010 ad oggil'andamento è in crescita grazie all'uso di 
+% tecniche di trivellazione e di produzione più efficienti (che però producono 
+% inquinamento atmosferico). Il gas naturale
+% produce meno polveri sottili del carbone e dei prodotti petroliferi 
+% raffinati. Ciò ha contribuito a un suo maggiore utilizzo nella produzione 
+% di elettricità e nel settore dei trasporti. Tuttavia, il gas naturale è 
+% fatto per lo più di metano, un potente gas a effetto serra che si disperde
+% nell'atmosfera.
+
 f3 = figure('Position',[100,100,1250,675])  %Scelta dimensioni
 plot(T.Rif_Mese,T.Produz_RinnoTOT,'Linewidth',1.3)
 xlabel('Tempo [Anni]')
