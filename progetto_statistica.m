@@ -85,4 +85,12 @@ saveas(f3,[pwd '\immagini\3.ConfrontoProduzioneRinnovabili.png'])
 %varNames = {'CombFos'; 'Rinnov'; 'TotCO2 USA'; 'RUSSIA'; 'CHINA';'CDD'};
 %[R,PValue,H] = corrplot(Variabili,'varNames',varNames); %corr matrix
 
-%% FITTING DATI
+%% %% DOMANDA 1 --> Come varia il consumo di fonti di energia (rinnovabili e non) in relazione
+%% alla vendita di auto a combustibile fossile?
+%1. grafici distribuzioni 
+%2. test di normalità 
+%3. trasformazioni normalizzanti 
+%4. scatter plot pre regressione 
+%5. correlazione lineare 
+%6. modello di regressione su variabili fortemente correlate 
+%7. model selection
