@@ -78,3 +78,11 @@ plot(T.Rif_Mese,T.Consum_RinnoTOT,'Linewidth',1.3)
 legend('Prod. Energia Rinnovabile TOT','Prod. Energia Idroelettrica','Prod. Energia Eolica','Prod. Energia da Biomassa','Consumo Energia Rinnovabile TOT')
 grid minor
 saveas(f3,[pwd '\immagini\3.ConfrontoProduzioneRinnovabili.png'])
+
+%Grafico matrice di correlazione tra la crescita delle temperature e 
+%provare a guardare il comando di matlab Heatmap()
+%Variabili = (T2(:,[5,9,17:20])) %trasformo le colonne significative in matrice
+%varNames = {'CombFos'; 'Rinnov'; 'TotCO2 USA'; 'RUSSIA'; 'CHINA';'CDD'};
+%[R,PValue,H] = corrplot(Variabili,'varNames',varNames); %corr matrix
+
+%% FITTING DATI
