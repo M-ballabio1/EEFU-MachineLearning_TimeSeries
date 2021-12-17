@@ -19,7 +19,7 @@ plot(T.Rif_Mese,T.Emiss_C02_Petro,'Linewidth',1.3)
 ylim([0 700])
 legend('Emissioni CO_{2} TOT','Emissioni CO_{2} da Carbone','Emissioni CO_{2} da Gas Naturale','Emissioni CO_{2} da Petrolio')
 grid minor
-saveas(f1,[pwd '\immagini\1.ConfrontoEmissioniCO2.png'])
+saveas(f1,[pwd '\immagini\01.ConfrontoEmissioniCO2.png'])
 
 f2 = figure('Position',[100,100,1250,675])  %Scelta dimensioni
 plot(T.Rif_Mese,T.Produz_CFosTOT,'LineWidth',1.3)
@@ -33,7 +33,7 @@ plot(T.Rif_Mese,T.Produz_PetrGreg,'Linewidth',1.3)
 plot(T.Rif_Mese,T.Consum_NRinnTOT,'Linewidth',1.3)
 legend('Prod. Combustibili Fossili (Non Rinnovabile) TOT','Prod. Carbone','Prod. Gas Naturale','Prod. Petrolio Greggio','Consumo Energia Non Rinnovabile TOT')
 grid minor
-saveas(f2,[pwd '\immagini\2.ConfrontoProduzioneNonRinnovabili.png'])
+saveas(f2,[pwd '\immagini\02.ConfrontoProduzioneNonRinnovabili.png'])
 
 %% commento F2: 
 % l'andamendo colorato in blu è la somma dei tre andamenti nella parte
@@ -78,7 +78,7 @@ plot(T.Rif_Mese,T.Consum_RinnoTOT,'Linewidth',1.3)
 legend('Prod. Energia Rinnovabile TOT','Prod. Energia Idroelettrica','Prod. Energia Eolica','Prod. Energia da Biomassa','Consumo Energia Rinnovabile TOT')
 grid minor
 hold off
-saveas(f3,[pwd '\immagini\3.ConfrontoProduzioneRinnovabili.png'])
+saveas(f3,[pwd '\immagini\03.ConfrontoProduzioneRinnovabili.png'])
 
 %Grafico matrice di correlazione tra la crescita delle temperature e 
 %provare a guardare il comando di matlab Heatmap()
@@ -96,7 +96,7 @@ histfit(T11.Emiss_C02_Carbo, 20,"normal")   %CAMBIARE COLONNA CON VENDITA AUTO.
 title('Distribuzione della vendita auto')
 xlabel('Mln') 
 ylabel('%')
-saveas(f4,[pwd '\immagini\4.DistribuzioneVenditeAuto.png'])
+saveas(f4,[pwd '\immagini\04.DistribuzioneVenditeAuto.png'])
 %gli inquinanti hanno normalmente una coda dx molto lunga (tipo
 %chi-quadrato)
 %2. test di normalità
@@ -158,7 +158,7 @@ h2.LineWidth = 2;
 title('VENDITA AUTO vs Consumo energia rinnovabile') 
 xlabel('Numero auto (Mln)')
 ylabel('Energia Rinnovabili [quadrilioni di BTU]')
-saveas(f5,[pwd '\immagini\5.ScatterPlotVenditeAuto_Energie.png'])
+saveas(f5,[pwd '\immagini\05.ScatterPlotVenditeAuto_Energie.png'])
 
 %5. correlazione lineare
 tt = corr(T11{:,{'Emiss_C02_NTotE','Consum_NRinnTOT','Consum_RinnoTOT'}})  % deve essere una matrice dopo input quindi graffe
@@ -171,7 +171,7 @@ f6 = figure
 set(f6,'position',[100,100,1250,675]);
 varNames = {'EmC02NTotE','Consum_NRinnTOT','Consum_RinnoTOT'};
 [R,PValue,H] = corrplot(T11{:,{'Emiss_C02_NTotE','Consum_NRinnTOT','Consum_RinnoTOT'}},'varNames',varNames)
-saveas(f6,[pwd '\immagini\6.MatriceCorrelazioneVenditeAuto_Energie.png'])
+saveas(f6,[pwd '\immagini\06.MatriceCorrelazioneVenditeAuto_Energie.png'])
 
 
 %6. modello di regressione su variabili fortemente correlate
@@ -199,7 +199,7 @@ title('VENDITA AUTO reale vs stimata (fitting lineare una variabile)')
 xlabel('Anni')
 ylabel('Mln automobili')
 legend('Emissioni di CO2 dataset','Emissioni di C02 stimati')
-saveas(f7,[pwd '\immagini\7.VenditeAuto_realeVSstimata_Regr_Sempl.png'])
+saveas(f7,[pwd '\immagini\07.VenditeAuto_realeVSstimata_Regr_Sempl.png'])
 
 % 'Test for zero slopes' = F-test sui coefficienti
 % PV < 0.01 --> Modello significativo nel complesso per ogni alpha
@@ -234,7 +234,7 @@ h1.LineWidth = 2;
 xlabel('Valori fittati'); 
 ylabel('Residui di regressione');
 text(30,0.5,sprintf('rho = %0.3f',round(corr(res1,fit1),3)))
-saveas(f8,[pwd '\immagini\8.Residui_Regr_Lin_VenditeAuto.png'])
+saveas(f8,[pwd '\immagini\08.Residui_Regr_Lin_VenditeAuto.png'])
 
 % controllo MEGLIO con test se sono normali i residui
 skewness(res1)    % Asimmetria negativa
@@ -263,7 +263,7 @@ title('VENDITA AUTO reale vs stimata (fitting lineare due variabili)')
 xlabel('Anni')
 ylabel('Mln automobili')
 legend('Emissioni di CO2 dataset','Emissioni di C02 stimati')
-saveas(f9,[pwd '\immagini\9.VenditeAuto_realeVSstimata_Regr_Multipla.png'])
+saveas(f9,[pwd '\immagini\09.VenditeAuto_realeVSstimata_Regr_Multipla.png'])
 
 anova(mhat2,'summary')
 % 'Test for zero slopes' = F-test sui coefficienti
