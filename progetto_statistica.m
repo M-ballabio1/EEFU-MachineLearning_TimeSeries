@@ -1,10 +1,20 @@
 %% IMPORTO DATASET
-T = readtable('DATA SET UFFICIALE.xlsx');
+
+T0 = readtable('DATA SET UFFICIALE.xlsx');
 T2 = readtable('DATA SET UFFICIALE.xlsx','Sheet','YEAR');
+
+opts = detectImportOptions('DATA SET UFFICIALE.xlsx');
+opts = setvartype(opts,{'VenditaAuto'},'double');  %forzare lettura come 'double' al posto di 'char'
+
+opts2 = detectImportOptions('DATA SET UFFICIALE.xlsx','Sheet','YEAR');
+opts2 = setvartype(opts2,{'AnomalieSulRiscaldamento'},'double');  %forzare lettura come 'double' al posto di 'char'
+
+T = readtable('DATA SET UFFICIALE.xlsx',opts);
+T1 = readtable('DATA SET UFFICIALE.xlsx',opts2,'Sheet','YEAR');
 
 %% RINOMINARE COLONNE
 % T.Month = datetime(T.Month,"Format","dd-MM-uuuu"); in realtà non serve 
-T.Properties.VariableNames = {'Rif_Mese','Emiss_C02_Carbo','Emiss_C02_GasNa','Emiss_C02_BenAe','Emiss_C02_CoODi','Emiss_C02_LiqId','Emiss_C02_CarJe','Emiss_C02_Keros','Emiss_C02_Lubri','Emiss_C02_BenMo','Emiss_C02_CokPe','Emiss_C02_CoORe','Emiss_C02_AltrP','Emiss_C02_Petro','Emiss_C02_NTotE','Produz_Carbone','Produz_GasNatur','Produz_PetrGreg','Produz_CFosTOT','Produz_Idroelet','Produz_Eolica','Produz_Biomasse','Produz_RinnoTOT','Produz_EnePrTOT','Consum_RinnoTOT','Consum_NRinnTOT','Consum_EnePrTOT','Import_EnePrTOT','Import_PetrOPEC','Consum_CFosTras','CDD','HDD','vendita_auto'}
+T.Properties.VariableNames = {'Rif_Mese','Emiss_C02_Carbo','Emiss_C02_GasNa','Emiss_C02_BenAe','Emiss_C02_CoODi','Emiss_C02_LiqId','Emiss_C02_CarJe','Emiss_C02_Keros','Emiss_C02_Lubri','Emiss_C02_BenMo','Emiss_C02_CokPe','Emiss_C02_CoORe','Emiss_C02_AltrP','Emiss_C02_Petro','Emiss_C02_NTotE','Produz_Carbone','Produz_GasNatur','Produz_PetrGreg','Produz_CFosTOT','Produz_Idroelet','Produz_Eolica','Produz_Biomasse','Produz_RinnoTOT','Produz_EnePrTOT','Consum_RinnoTOT','Consum_NRinnTOT','Consum_EnePrTOT','Import_EnePrTOT','Import_PetrOPEC','Consum_CFosTras','CDD','HDD','vendita_auto','Consum_petrolio_Trasp'}
 
 %% PLOT DATA
 f1 = figure('Position',[100,100,1250,675])  %Scelta dimensioni
@@ -92,7 +102,7 @@ T11 = T([445:end],:)
 %1. grafici distribuzioni
 % Grafici delle distribuzioni
 f4 = figure('Position',[100,100,1250,675])
-histfit(T11.Emiss_C02_Carbo, 20,"normal")   %CAMBIARE COLONNA CON VENDITA AUTO.
+histfit(T11.vendita_auto, 20,"normal")   %CAMBIARE COLONNA CON VENDITA AUTO.
 title('Distribuzione della vendita auto')
 xlabel('Mln') 
 ylabel('%')
@@ -101,49 +111,54 @@ saveas(f4,[pwd '\immagini\04.DistribuzioneVenditeAuto.png'])
 %chi-quadrato)
 %2. test di normalità
 %Indicatori di normalità: curtosi e skewness
-skewness(T11.Emiss_C02_Carbo)    % Asimmetria positiva
-kurtosis(T11.Emiss_C02_Carbo)    % Platicurticità
+skewness(T11.vendita_auto)    % Asimmetria positiva
+kurtosis(T11.vendita_auto)    % Platicurticità
 %3. trasformazioni normalizzanti
-[h,p,jbstat,critval] = jbtest(T11.Emiss_C02_Carbo, 0.05)   % Test al 5% --> Rigetto H0 --> non norm       ---> SICCOME TROVO 4% di p-value e la soglia è 5% rigehtto HO
-[h1,p1,jbstat1,critval1] = jbtest(T11.Emiss_C02_Carbo, 0.01)   % Test al 1% --> Non rigetto H0 --> norm   --> IN QUESTO CASO LA soglia è 1% non posso rigettare
-[h2,p2,jbstat2,critval2] = jbtest(T11.Emiss_C02_Carbo, 0.10)   % Test al 1% --> Non rigetto H0 --> norm   --> IN QUESTO CASO LA soglia è 1% non posso rigettare
+[h,p,jbstat,critval] = jbtest(T11.vendita_auto, 0.05)   % Test al 5% --> Rigetto H0 --> non norm       ---> SICCOME TROVO 4% di p-value e la soglia è 5% rigehtto HO
+[h1,p1,jbstat1,critval1] = jbtest(T11.vendita_auto, 0.01)   % Test al 1% --> Non rigetto H0 --> norm   --> IN QUESTO CASO LA soglia è 1% non posso rigettare
+[h2,p2,jbstat2,critval2] = jbtest(T11.vendita_auto, 0.10)   % Test al 1% --> Non rigetto H0 --> norm   --> IN QUESTO CASO LA soglia è 1% non posso rigettare
 %Lilliefors 
-[h3,p3,dstat3,critval3] = lillietest(T11.Emiss_C02_Carbo,'Alpha',0.05)   %--> con lilliefors trovo che i dati non sono normali
+[h3,p3,dstat3,critval3] = lillietest(T11.vendita_auto,'Alpha',0.05)   %--> con lilliefors trovo che i dati non sono normali
 % PV < 0.01 --> Rigetto H0 sia al 1% che al 5%
 
 
 
 %(BoxCox trasf normalizzante se prima esce H1)
-[transdat,lambda] = boxcox(T11.Emiss_C02_Carbo)
-T11_Emiss_C02_Carbo_bc = boxcox(lambda,T11.Emiss_C02_Carbo);   %ho applicato lambda alla Tm.NO2
-histogram(log(T11_Emiss_C02_Carbo_bc),20)         %applico logaritmo
+[transdat,lambda] = boxcox(T11.vendita_auto)
+T11_vendita_auto_bc = boxcox(lambda,T11.vendita_auto);   %ho applicato lambda alla T11.vendita auto --> trovo lambda circa 1.5 allora provo il quadrato (^2)
+histfit((T11_vendita_auto_bc),20,'normal')         %applico elevamento quadrato
 
 % lambda molto vicino a 0 --> trasformazione ottima è logaritmo
-T11_log_Emiss_C02_Carbo = log(T11.Emiss_C02_Carbo);
-histogram(T11_log_Emiss_C02_Carbo,20)
-[h,p,jbstat,critval] = jbtest(T11_log_Emiss_C02_Carbo,0.05)   % Test al 5% --> Non rigetto H0 --> norm
-[h,p,jbstat,critval] = jbtest(T11_log_Emiss_C02_Carbo,0.01)   % Test al 1% --> Non rigetto H0 --> norm
-[h,p,dstat,critval] = lillietest(T11_log_Emiss_C02_Carbo,'Alpha',0.05)  % Rigetto al 5%, non rigetto al 1%
+% lambda tra 1 e 2 --> trasf. ideale è elevamento al quadrato
+T11_vendita_auto_bc_quadr = log(T11_vendita_auto_bc);
+histfit(T11_vendita_auto_bc_quadr,20,'normal')
+skewness(T11_vendita_auto_bc_quadr)    % Asimmetria positiva
+kurtosis(T11_vendita_auto_bc_quadr)    % Platicurticità
+%valuti se è cambiato qualcosa con test normalità
+[h,p,jbstat,critval] = jbtest(T11_vendita_auto_bc_quadr,0.05)   % Test al 5% --> Non rigetto H0 --> norm
+[h1,p1,jbstat1,critval1] = jbtest(T11_vendita_auto_bc_quadr,0.01)   % Test al 1% --> Non rigetto H0 --> norm
+[h2,p2,jbstat2,critval2] = jbtest(T11_vendita_auto_bc_quadr, 0.10)   % Test al 1% --> Non rigetto H0 --> norm   --> IN QUESTO CASO LA soglia è 1% non posso rigettare
+[h3,p3,dstat3,critval3] = lillietest(T11_vendita_auto_bc_quadr,'Alpha',0.05)  % Rigetto al 5%, non rigetto al 1%
 
 
 
 
 %4. scatter plot pre regressione
 % VENDITA AUTO vs Consumo energia non rinnovabile
-scatter(T11.Emiss_C02_NTotE,T11.Consum_NRinnTOT)    %correlazione tra i due non è altissima ma positiva
+scatter(T11.vendita_auto,T11.Consum_petrolio_Trasp)    %correlazione tra i due non è altissima ma positiva
 h1 = lsline
 h1.Color = 'r';
 h1.LineWidth = 2;
 
 % VENDITA AUTO vs Consumo energia rinnovabile
-scatter(T11.Emiss_C02_Carbo,T11.Consum_RinnoTOT)
+scatter(T11.vendita_auto,T11.Consum_RinnoTOT)
 lsline
 
 % Grafici multipli affiancati  --> ho raggruppato tutto nello stesso plot
 f5 = figure
 subplot(1,2,1)
 set(f5,'position',[100,100,1250,675]);
-scatter(T11.Emiss_C02_NTotE,T11.Consum_NRinnTOT)
+scatter(T11.vendita_auto,T11.Consum_NRinnTOT)
 h1 = lsline
 h1.Color = 'r';
 h1.LineWidth = 2;
@@ -151,7 +166,7 @@ title('VENDITA AUTO vs Consumo energia non rinnovabile')
 xlabel('Numero auto (Mln)') 
 ylabel('Energia Non Rinnovabili [quadrilioni di BTU]')
 subplot(1,2,2)
-scatter(T11.Emiss_C02_NTotE,T11.Consum_RinnoTOT)
+scatter(T11.vendita_auto,T11.Consum_RinnoTOT)
 h2 = lsline
 h2.Color = 'b';
 h2.LineWidth = 2;
@@ -161,28 +176,27 @@ ylabel('Energia Rinnovabili [quadrilioni di BTU]')
 saveas(f5,[pwd '\immagini\05.ScatterPlotVenditeAuto_Energie.png'])
 
 %5. correlazione lineare
-tt = corr(T11{:,{'Emiss_C02_NTotE','Consum_NRinnTOT','Consum_RinnoTOT'}})  % deve essere una matrice dopo input quindi graffe
-rowNames = {'Emiss_C02_NTotE','Consum_NRinnTOT','Consum_RinnoTOT'};
-colNames = {'Emiss_C02_NTotE','Consum_NRinnTOT','Consum_RinnoTOT'};
+tt = corr(T11{:,{'vendita_auto','Consum_NRinnTOT','Consum_RinnoTOT'}})  % deve essere una matrice dopo input quindi graffe
+rowNames = {'Vendita_auto','Consum_NRinnTOT','Consum_RinnoTOT'};
+colNames = {'Vendita_auto','Consum_NRinnTOT','Consum_RinnoTOT'};
 sTable = array2table(tt,'RowNames',rowNames,'VariableNames',colNames)     %lo trasformo in una table per farlo diventare più bello
 
 %Grafico aggregato
 f6 = figure
 set(f6,'position',[100,100,1250,675]);
-varNames = {'EmC02NTotE','Consum_NRinnTOT','Consum_RinnoTOT'};
-[R,PValue,H] = corrplot(T11{:,{'Emiss_C02_NTotE','Consum_NRinnTOT','Consum_RinnoTOT'}},'varNames',varNames)
+varNames = {'PEoli','PCarb','HDD','CRinn','CNRin','carbo','EmC02'};
+[R,PValue,H] = corrplot(T11{:,{'Produz_Eolica','Produz_Carbone','HDD','Consum_RinnoTOT','Consum_NRinnTOT','Emiss_C02_Carbo','Emiss_C02_NTotE'}},'varNames',varNames)
 saveas(f6,[pwd '\immagini\06.MatriceCorrelazioneVenditeAuto_Energie.png'])
-
 
 %6. modello di regressione su variabili fortemente correlate
 %%% REGRESSIONE LINEARE SEMPLICE
 %Regressione lineare semplice: y_t = beta0 + beta1*x_t + epsilon_t
-mhat = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars','Consum_NRinnTOT')    %%% MODIFICARE PREDICTOR IN VENDITA_AUTO
+mhat = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars','Emiss_C02_Carbo')    %%% MODIFICARE PREDICTOR IN VENDITA_AUTO
 %%% Coefficienti stimati
 mhat.Coefficients
 % Intercetta significativa ad ogni livello di significatività (pv < 0.01)
     % Ad una temperatura di 0° è associata una concentrazione di 47.405 mg/m3 
-    % di NO2
+    % di NO2 
 % Temperatura significativa ad ogni livello di significatività (pv < 0.01)
     % Ad un incremento di 1° di temperatura è associata una riduzione di -1.38
     % mg/m3 nelle concentrazioni di NO2
@@ -249,7 +263,7 @@ kurtosis(res1)    % distribuzione a campana
 
 %%% REGRESSIONE LINEARE MULTIPLA:
 % Modello log-lineare: la dipendente è logaritmica, i regressori sono lineari
-mhat2 = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars',{'Consum_NRinnTOT','Consum_RinnoTOT'})
+mhat2 = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars',{'Emiss_C02_Carbo','HDD','Produz_Eolica','Produz_Carbone'})
 %%% Coefficienti stimati
 mhat2.Coefficients
 
