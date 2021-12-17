@@ -77,6 +77,7 @@ plot(T.Rif_Mese,T.Produz_Biomasse,'Linewidth',1.3)
 plot(T.Rif_Mese,T.Consum_RinnoTOT,'Linewidth',1.3)
 legend('Prod. Energia Rinnovabile TOT','Prod. Energia Idroelettrica','Prod. Energia Eolica','Prod. Energia da Biomassa','Consumo Energia Rinnovabile TOT')
 grid minor
+hold off
 saveas(f3,[pwd '\immagini\3.ConfrontoProduzioneRinnovabili.png'])
 
 %Grafico matrice di correlazione tra la crescita delle temperature e 
@@ -90,10 +91,12 @@ saveas(f3,[pwd '\immagini\3.ConfrontoProduzioneRinnovabili.png'])
 T11 = T([445:end],:)
 %1. grafici distribuzioni
 % Grafici delle distribuzioni
-histogram(T11.Emiss_C02_Carbo, 20,'Normalization','probability')   %CAMBIARE COLONNA CON VENDITA AUTO.
+f4 = figure('Position',[100,100,1250,675])
+histfit(T11.Emiss_C02_Carbo, 20,"normal")   %CAMBIARE COLONNA CON VENDITA AUTO.
 title('Distribuzione della vendita auto')
 xlabel('Mln') 
 ylabel('%')
+saveas(f4,[pwd '\immagini\4.DistribuzioneVenditeAuto.png'])
 %gli inquinanti hanno normalmente una coda dx molto lunga (tipo
 %chi-quadrato)
 %2. test di normalità
@@ -137,7 +140,9 @@ scatter(T11.Emiss_C02_Carbo,T11.Consum_RinnoTOT)
 lsline
 
 % Grafici multipli affiancati  --> ho raggruppato tutto nello stesso plot
+f5 = figure
 subplot(1,2,1)
+set(f5,'position',[100,100,1250,675]);
 scatter(T11.Emiss_C02_NTotE,T11.Consum_NRinnTOT)
 h1 = lsline
 h1.Color = 'r';
@@ -153,6 +158,7 @@ h2.LineWidth = 2;
 title('VENDITA AUTO vs Consumo energia rinnovabile') 
 xlabel('Numero auto (Mln)')
 ylabel('Energia Rinnovabili [quadrilioni di BTU]')
+saveas(f5,[pwd '\immagini\5.ScatterPlotVenditeAuto_Energie.png'])
 
 %5. correlazione lineare
 tt = corr(T11{:,{'Emiss_C02_NTotE','Consum_NRinnTOT','Consum_RinnoTOT'}})  % deve essere una matrice dopo input quindi graffe
@@ -161,8 +167,11 @@ colNames = {'Emiss_C02_NTotE','Consum_NRinnTOT','Consum_RinnoTOT'};
 sTable = array2table(tt,'RowNames',rowNames,'VariableNames',colNames)     %lo trasformo in una table per farlo diventare più bello
 
 %Grafico aggregato
+f6 = figure
+set(f6,'position',[100,100,1250,675]);
 varNames = {'EmC02NTotE','Consum_NRinnTOT','Consum_RinnoTOT'};
 [R,PValue,H] = corrplot(T11{:,{'Emiss_C02_NTotE','Consum_NRinnTOT','Consum_RinnoTOT'}},'varNames',varNames)
+saveas(f6,[pwd '\immagini\6.MatriceCorrelazioneVenditeAuto_Energie.png'])
 
 
 %6. modello di regressione su variabili fortemente correlate
@@ -179,6 +188,19 @@ mhat.Coefficients
     % mg/m3 nelle concentrazioni di NO2
 %%% Significatività complessiva del modello
 anova(mhat,'summary')
+
+%PLOT PER VERIFICARE CONFRONTO DATI VERI E STIMATI
+f7 = figure('Position',[100,100,1250,675])
+plot(T11.Rif_Mese, T11.Emiss_C02_NTotE)
+hold on
+plot(T11.Rif_Mese, mhat.Fitted)
+hold off
+title('VENDITA AUTO reale vs stimata (fitting lineare una variabile)') 
+xlabel('Anni')
+ylabel('Mln automobili')
+legend('Emissioni di CO2 dataset','Emissioni di C02 stimati')
+saveas(f7,[pwd '\immagini\7.VenditeAuto_realeVSstimata_Regr_Sempl.png'])
+
 % 'Test for zero slopes' = F-test sui coefficienti
 % PV < 0.01 --> Modello significativo nel complesso per ogni alpha
 %%% Adattamento del modello
@@ -192,6 +214,8 @@ res1 = mhat.Residuals.Raw;
 %%%ANALISI dei residui (ossia la stima degli epsilon nel modello di
 %%%regressione)
 % Diagnostiche sui residui: normalità
+f8 = figure()
+set(f8,'position',[100,100,1250,675]);
 subplot(1,2,1)
 histfit(res1)
 title('Distribuzione dei residui di regressione')
@@ -210,6 +234,7 @@ h1.LineWidth = 2;
 xlabel('Valori fittati'); 
 ylabel('Residui di regressione');
 text(30,0.5,sprintf('rho = %0.3f',round(corr(res1,fit1),3)))
+saveas(f8,[pwd '\immagini\8.Residui_Regr_Lin_VenditeAuto.png'])
 
 % controllo MEGLIO con test se sono normali i residui
 skewness(res1)    % Asimmetria negativa
@@ -227,6 +252,19 @@ kurtosis(res1)    % distribuzione a campana
 mhat2 = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars',{'Consum_NRinnTOT','Consum_RinnoTOT'})
 %%% Coefficienti stimati
 mhat2.Coefficients
+
+%confronto reali vs fitted (2 variabili)
+f9 = figure('Position',[100,100,1250,675])
+plot(T11.Rif_Mese, T11.Emiss_C02_NTotE)
+hold on
+plot(T11.Rif_Mese, mhat2.Fitted)
+hold off
+title('VENDITA AUTO reale vs stimata (fitting lineare due variabili)') 
+xlabel('Anni')
+ylabel('Mln automobili')
+legend('Emissioni di CO2 dataset','Emissioni di C02 stimati')
+saveas(f9,[pwd '\immagini\9.VenditeAuto_realeVSstimata_Regr_Multipla.png'])
+
 anova(mhat2,'summary')
 % 'Test for zero slopes' = F-test sui coefficienti
 % PV < 0.01 --> Modello significativo nel complesso per ogni alpha
@@ -241,6 +279,8 @@ res2 = mhat2.Residuals.Raw;
 %%%ANALISI dei residui (ossia la stima degli epsilon nel modello di
 %%%regressione)
 % Diagnostiche sui residui: normalità
+f10 = figure()
+set(f10,'position',[100,100,1250,675]);
 subplot(1,2,1)
 histfit(res2)
 title('Distribuzione dei residui di regressione')
@@ -259,6 +299,7 @@ h1.LineWidth = 2;
 xlabel('Valori fittati'); 
 ylabel('Residui di regressione');
 %text(30,0.5,sprintf('rho = %0.3f',round(corr(res2,fit2),3))) %CAPIRE SIGN.
+saveas(f10,[pwd '\immagini\10.Residui_Regr_Mul_VenditeAuto.png'])
 
 % controllo MEGLIO con test se sono normali i residui
 skewness(res2)    % Asimmetria negativa
@@ -271,4 +312,57 @@ kurtosis(res2)    % distribuzione a campana
 [h3,p3,ci3,stats3] = ttest(res2)
 
 
+%%%%%%%%% MODIFICARE DA QUESTO PUNTO.
+
 %7. model selection
+%%% Model selection: STEPWISE regression  (in questo caso da modello vuoto a pieno)
+% 1. Elenco tutte le variabili di regressione di interesse
+xvars = [{'Temperatura'},{'Umidita'},{'CO'},{'BC'},{'O3'},{'PM10'}];
+% 2. Seleziono le colonne corrispondenti
+Tm_sel = Tm(:,[xvars, {'log_NO2'}]);
+% 3. Stimo modello con tutti i regressori (modello full)
+mhat_full = fitlm(Tm_sel,'ResponseVar','log_NO2')
+% 4. Applico algoritmo stepwise (dal modello vuoto a quello pieno)
+X = Tm_sel{:,xvars};
+y = Tm_sel{:,'log_NO2'};
+[b,se,pval,in_stepwise,stats,nextstep,history] = stepwisefit(X,y,...
+    'PRemove',0.15,'PEnter',0.10);                                          %penultimo rimuovo variabile se suo p-value < 15%
+% 5. Valuto modello selezionato con stepwise ->solo con le variabile 1,4,6
+mhat_step = fitlm(Tm_sel(:,[in_stepwise,true]),'ResponseVar','log_NO2')
+% 6. Osservo errore quadratico medio di previsione
+disp('RMSE con stepwise model selection:')
+disp(stats.rmse)
+
+%teoricamente nel modello mi seleziona come variabile significativa anche
+%BLACK CARBON colonna 4, ma questa a p-value 6% e fa abbastanza schifo,
+%perciò dovrei andare in PRemove e mettere 0.05
+
+
+%%% Model selection: LASSO algorithm
+
+% Lasso mediante la cross-validazione fa un ragionamento previsivo. Trovo
+% quei valori penalizzati tale che la previsione è la migliore con un
+% modello lineare.
+% 1. Elenco tutte le variabili di regressione di interesse
+xvars = [{'Temperatura'},{'Umidita'},{'CO'},{'BC'},{'O3'},{'PM10'}];
+% 2. Seleziono le colonne corrispondenti
+Tm_sel = Tm(:,[xvars, {'log_NO2'}]);
+% 3. Stimo modello con tutti i regressori (modello full)
+mhat_full = fitlm(Tm_sel,'ResponseVar','log_NO2')
+% 4. Applico algoritmo LASSO con cross-validation dei parametri 20-folds
+X = Tm_sel{:,xvars};
+y = Tm_sel{:,'log_NO2'};
+%BHAT testa 100 lambda differenti e rispetto al numero di previsori che
+%sono andato a dargli. Risultato output bhat matrice 6*100
+[Bhat,lasso_st]=lasso(X,y,'CV',20,'MCReps',5,...
+                'Options',statset('UseParallel',true),...
+                'PredictorNames',xvars);
+% 5. Identifico le varaibili selezionate con LASSO
+lasso_st.IndexMinMSE                                %--> migliore modello con bhat, è il 36 lambda che manda a 0 solo la 3° variabile e le altre le tiene
+%sto selezionando le variabili che vanno bene ottenute con lasso e 
+in_lasso = not(Bhat(:,lasso_st.IndexMinMSE)==0);
+% 6. Valuto modello selezionato
+mhat_lasso = fitlm(Tm_sel(:,[in_lasso(:)',true]),'ResponseVar','log_NO2')
+% 7 Osservo errore di previsione associato al modello selezionato
+disp('RMSE con 20-folds cross-validation:')
+disp(sqrt(lasso_st.MSE(lasso_st.IndexMinMSE)))
