@@ -118,7 +118,7 @@ kurtosis(T11.vendita_auto)    % Platicurticità
 [h1,p1,jbstat1,critval1] = jbtest(T11.vendita_auto, 0.01)   % Test al 1% --> Non rigetto H0 --> norm   --> IN QUESTO CASO LA soglia è 1% non posso rigettare
 [h2,p2,jbstat2,critval2] = jbtest(T11.vendita_auto, 0.10)   % Test al 1% --> Non rigetto H0 --> norm   --> IN QUESTO CASO LA soglia è 1% non posso rigettare
 %Lilliefors 
-[h3,p3,dstat3,critval3] = lillietest(T11.vendita_auto,'Alpha',0.05)   %--> con lilliefors trovo che i dati non sono normali
+[h3,p3,dstat3,critval3] = lillietest(T11.vendita_auto,'Alpha',0.05)   %--> con lilliefors trovo che i dati sono normali
 % PV < 0.01 --> Rigetto H0 sia al 1% che al 5%
 
 
@@ -130,7 +130,7 @@ histfit((T11_vendita_auto_bc),20,'normal')         %applico elevamento quadrato
 
 % lambda molto vicino a 0 --> trasformazione ottima è logaritmo
 % lambda tra 1 e 2 --> trasf. ideale è elevamento al quadrato
-T11_vendita_auto_bc_quadr = log(T11_vendita_auto_bc);
+T11_vendita_auto_bc_quadr = (T11_vendita_auto_bc).^2;
 histfit(T11_vendita_auto_bc_quadr,20,'normal')
 skewness(T11_vendita_auto_bc_quadr)    % Asimmetria positiva
 kurtosis(T11_vendita_auto_bc_quadr)    % Platicurticità
@@ -184,14 +184,15 @@ sTable = array2table(tt,'RowNames',rowNames,'VariableNames',colNames)     %lo tr
 %Grafico aggregato
 f6 = figure
 set(f6,'position',[100,100,1250,675]);
-varNames = {'PEoli','PCarb','HDD','CRinn','CNRin','carbo','EmC02'};
-[R,PValue,H] = corrplot(T11{:,{'Produz_Eolica','Produz_Carbone','HDD','Consum_RinnoTOT','Consum_NRinnTOT','Emiss_C02_Carbo','Emiss_C02_NTotE'}},'varNames',varNames)
+varNames = {'PEoli','PCarb','CRinn','CNRin','carbo','EmC02'};
+[R,PValue,H] = corrplot(T11{:,{'Produz_Eolica','Produz_Carbone','Consum_RinnoTOT','Consum_NRinnTOT','Emiss_C02_Carbo','Emiss_C02_NTotE'}},'varNames',varNames)
 saveas(f6,[pwd '\immagini\06.MatriceCorrelazioneVenditeAuto_Energie.png'])
+
 
 %6. modello di regressione su variabili fortemente correlate
 %%% REGRESSIONE LINEARE SEMPLICE
 %Regressione lineare semplice: y_t = beta0 + beta1*x_t + epsilon_t
-mhat = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars','Emiss_C02_Carbo')    %%% MODIFICARE PREDICTOR IN VENDITA_AUTO
+mhat = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars','Produz_Carbone')    %%% MODIFICARE PREDICTOR IN VENDITA_AUTO
 %%% Coefficienti stimati
 mhat.Coefficients
 % Intercetta significativa ad ogni livello di significatività (pv < 0.01)
@@ -263,7 +264,7 @@ kurtosis(res1)    % distribuzione a campana
 
 %%% REGRESSIONE LINEARE MULTIPLA:
 % Modello log-lineare: la dipendente è logaritmica, i regressori sono lineari
-mhat2 = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars',{'Emiss_C02_Carbo','HDD','Produz_Eolica','Produz_Carbone'})
+mhat2 = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars',{'Produz_Eolica','Produz_Carbone','Consum_CFosTras','Produz_Biomasse'})
 %%% Coefficienti stimati
 mhat2.Coefficients
 
