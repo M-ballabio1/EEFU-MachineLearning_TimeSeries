@@ -380,3 +380,123 @@ mhat_lasso = fitlm(Tm_sel(:,[in_lasso(:)',true]),'ResponseVar','log_NO2')
 % 7 Osservo errore di previsione associato al modello selezionato
 disp('RMSE con 20-folds cross-validation:')
 disp(sqrt(lasso_st.MSE(lasso_st.IndexMinMSE)))
+
+
+%% Rappresentazione grafica della serie storica
+plot(gas_agr.Data,gas_agr.Agricoltura)
+title('Andamento delle vendite di gasolio agricolo dal 2014 a luglio 2020')
+xlabel('Mese') 
+ylabel('Tonnellate')
+
+%% AUTOREGRESSIVI: Caratteristiche grafiche della serie: autocorrelazioni e distribuzione
+figure
+% Serie storica
+subplot(2,2,1)      
+plot(T11.Rif_Mese,T11.Produz_Idroelet);
+title('Serie storica delle vendite di gasolio agricolo')
+% Istogramma della distribuzione
+subplot(2,2,2)       
+histfit(T11.Produz_Idroelet,20,'Normal')
+title('Istogramma della distribuzione')
+% Autocorrelazioni
+subplot(2,2,3)       
+autocorr(T11.Produz_Idroelet, 36);
+title('ACF delle innovazioni')
+% Autocorrelazioni parziali
+subplot(2,2,4)       
+parcorr(T11.Produz_Idroelet, 36);
+title('PACF delle innovazioni')
+% in questo caso pacf si nota che è stagionale ritardo 12 (che tenende ad
+% affievolirsi dopo 36 mesi)
+
+% Test di Bera-Jarque di normalità - H0 = dati normali
+[h,p,jbstat,critval] = jbtest(T11.Produz_Idroelet)
+% Ad un livello del 1% i dati sono normali (pv > 0.01)
+
+% Ljung-Box test per autocorrelazione
+[h,pValue,stat,cValue] = lbqtest(T11.Produz_Idroelet,'lags',[1,2,13,25,36])
+
+%%Durbin-Watson test per autocorrelazione
+%questo test si chiede se c'è autocorrelazione a ritardo 1.
+[pValue,stat] = dwtest(T11.Produz_Idroelet,ones(size(T11.Produz_Idroelet,1)-1,1),'Method','exact')
+% pv = 0 --> Rigetto ipotesi nulla --> Valori autoregressivi
+
+% Augmented-Dickey-Fuller test per stazionarietà
+% H0 = la serie è non stazionaria
+% H1 = la serie è stazionaria
+[h,p,adfstat,critval] = adftest(T11.Produz_Idroelet,'model','TS','lags',0:24)
+
+%%%%% Modelli ARIMA
+%%% Modello la serie storica con modelli ARIMA(p,0,q) e SARIMA((p,0,q),(P,0,Q))
+% ARIMA(p,0,q): y_t = alpha1*y_t-1 + ... + alphap*y_t-p + esp_t + ...
+%                           theta_1*eps_t-1 + theta_q*eps_t-q
+% Modello AR(12): y_t = alpha1*y_t-1 + alpha2*y_t-2 + ... + alpha12*y_t-12 + eps_t
+
+%modello AR(12) --> metodo grezzo
+
+AR12 = arima('ARLags',1:12);
+EstAR12 = estimate(AR12,T11.Produz_Idroelet,'Display','off');  % mestimate uso la massima verosomiglianza per stimare parametri
+summarize(EstAR12); %mostra risultati modello
+%Trovo i residui (detti anche innovazioni) dell'Arima.
+innov = infer(EstAR12, T11.Produz_Idroelet, 'Y0',T11.Produz_Idroelet(1:12)); % il terzo parametro dò la serie con valori pari al numero di AR scelto in questo caso 12
+fitted = T11.Produz_Idroelet + innov;  %fitted sarebbero "y cappello" calcolati in quel modo.
+
+%%% Grafico della serie osservata e stimata/fittata
+%%% SOVRASTIMA TALVOLTA I PICCHI.
+figure
+plot(T11.Rif_Mese,T11.Produz_Idroelet)
+hold on
+plot(T11.Rif_Mese,fitted)
+legend('Osservata','Fittata AR(12)')
+title('Serie storica osservata e fittata con AR(12)')
+
+
+
+%%%%%
+
+
+rinn_T11 = T11.Produz_RinnoTOT;
+periodo = T11.Rif_Mese
+train_idroel = rinn_T11([1:111],:);
+test_idroel = rinn_T11([112:end],:);   %20
+Period = periodo([112:end],:)
+
+%%super-interessante
+
+%%%%% Modelli Seasonal ARIMA
+% Modello SARIMA((1,0,0),(12,0,0))
+% y_t = alpha1*y_t-1 + Alpha12*y_t-12 + eps_t
+SAR112 = arima('ARLags',1,'MALags',1,'SARLags',12);
+EstSAR112 = estimate(SAR112,train_idroel,'Display','off');
+summarize(EstSAR112);
+innovSAR112 = infer(EstSAR112, T11.Produz_RinnoTOT, 'Y0',T11.Produz_RinnoTOT(1:14));   %13 perchè 12 ritardi SARIMA + 1 AR(1)
+fittedSAR112 = T11.Produz_RinnoTOT + innov;
+
+mhat = forecast(EstSAR112,28,test_idroel)
+
+%%% Grafico della serie osservata e stimata/fittata
+figure
+plot(Period,test_idroel)
+hold on
+%plot(T11.Rif_Mese,fittedSAR112)
+plot(Period,mhat)
+legend('Osservata','SARIMA((1,0,0),(12,0,0))','AR(12)')
+title('Serie storica osservata e fittata con SARIMA((1,0,0),(12,0,0))')
+
+RMSE = sqrt(mean((test_idroel - mhat).^2));  % Root Mean Squared Error
+
+%%%%%%%%% USARE ARIMA CON MA ordine 1,2,3 per differenziare la serie
+
+MA11 = arima(2,2,2)
+MAS11 = estimate(MA11,T11.Consum_RinnoTOT,'Display','off');
+summarize(MAS11);
+innovMA112 = infer(MAS11, T11.Consum_RinnoTOT, 'Y0',T11.Consum_RinnoTOT(1:4));   %13 perchè 12 ritardi SARIMA + 1 AR(1)
+fittedMA112 = T11.Produz_Idroelet + innov;
+
+figure
+plot(T11.Rif_Mese,T11.Consum_RinnoTOT)
+hold on
+plot(T11.Rif_Mese,fittedMA112)
+legend('Osservata','MA (1,1,0)')
+title('Serie storica osservata e fittata con SARIMA((1,0,0),(12,0,0))')
+
