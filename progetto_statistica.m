@@ -96,111 +96,97 @@ saveas(f3,[pwd '\immagini\03.ConfrontoProduzioneRinnovabili.png'])
 %varNames = {'CombFos'; 'Rinnov'; 'TotCO2 USA'; 'RUSSIA'; 'CHINA';'CDD'};
 %[R,PValue,H] = corrplot(Variabili,'varNames',varNames); %corr matrix
 
-%% %% DOMANDA 1 --> Come varia il consumo di fonti di energia (rinnovabili e non) in relazione alla vendita di auto a combustibile fossile?
+%% %% DOMANDA 1 --> Analisi della correlazione per stimare le emissioni di C02
 %selezione ultimi 11 anni:
-T11 = T([445:end],:)
+T11 = T([445:end],:);
 %1. grafici distribuzioni
 % Grafici delle distribuzioni
 f4 = figure('Position',[100,100,1250,675])
-histfit(T11.vendita_auto, 20,"normal")   %CAMBIARE COLONNA CON VENDITA AUTO.
-title('Distribuzione della vendita auto')
-xlabel('Mln') 
-ylabel('%')
-saveas(f4,[pwd '\immagini\04.DistribuzioneVenditeAuto.png'])
-%gli inquinanti hanno normalmente una coda dx molto lunga (tipo
-%chi-quadrato)
-%2. test di normalità
-%Indicatori di normalità: curtosi e skewness
-skewness(T11.vendita_auto)    % Asimmetria positiva
-kurtosis(T11.vendita_auto)    % Platicurticità
-%3. trasformazioni normalizzanti
-[h,p,jbstat,critval] = jbtest(T11.vendita_auto, 0.05)   % Test al 5% --> Rigetto H0 --> non norm       ---> SICCOME TROVO 4% di p-value e la soglia è 5% rigehtto HO
-[h1,p1,jbstat1,critval1] = jbtest(T11.vendita_auto, 0.01)   % Test al 1% --> Non rigetto H0 --> norm   --> IN QUESTO CASO LA soglia è 1% non posso rigettare
-[h2,p2,jbstat2,critval2] = jbtest(T11.vendita_auto, 0.10)   % Test al 1% --> Non rigetto H0 --> norm   --> IN QUESTO CASO LA soglia è 1% non posso rigettare
+histfit(T11.Emiss_C02_NTotE, 20,"normal")                               %sembra avere distribuzione normale
+title('Distribuzione emissione C0_2 ')
+xlabel('Quantità C0_2 emessa [Mln]') 
+ylabel('Frequenza relativa [%]')
+saveas(f4,[pwd '\immagini\04.DistribuzioneEmissioneC02.png'])
+%2. indici normalità: curtosi e skewness
+kurtosis(T11.Emiss_C02_NTotE)  
+skewness(T11.Emiss_C02_NTotE)    
+%3. test di normalità
+%Jarque-Bera
+[h,p,jbstat,critval] = jbtest(T11.Emiss_C02_NTotE, 0.05)   % Test al 5%   
+[h1,p1,jbstat1,critval1] = jbtest(T11.Emiss_C02_NTotE, 0.01)   % Test al 1%  
+[h2,p2,jbstat2,critval2] = jbtest(T11.Emiss_C02_NTotE, 0.10)   % Test al 10%
+%I test ci permettono di affermare che la distribuzione è normale (2/3) 
+
 %Lilliefors 
-[h3,p3,dstat3,critval3] = lillietest(T11.vendita_auto,'Alpha',0.05)   %--> con lilliefors trovo che i dati sono normali
-% PV < 0.01 --> Rigetto H0 sia al 1% che al 5%
+[h3,p3,dstat3,critval3] = lillietest(T11.Emiss_C02_NTotE,'Alpha',0.05)   %--> con lilliefors trovo che i dati sono normali
+%Il test ci conferma l'ipotesi di normalità 
 
-
-
+%{
 %(BoxCox trasf normalizzante se prima esce H1)
-[transdat,lambda] = boxcox(T11.vendita_auto)
-T11_vendita_auto_bc = boxcox(lambda,T11.vendita_auto);   %ho applicato lambda alla T11.vendita auto --> trovo lambda circa 1.5 allora provo il quadrato (^2)
-histfit((T11_vendita_auto_bc),20,'normal')         %applico elevamento quadrato
+[transdat,lambda] = boxcox(T11.Emiss_C02_NTotE)
+T11_EMISSIONI_bc = boxcox(lambda,T11.Emiss_C02_NTotE); 
+histfit((T11_EMISSIONI_bc),20,'normal')        
 
 % lambda molto vicino a 0 --> trasformazione ottima è logaritmo
 % lambda tra 1 e 2 --> trasf. ideale è elevamento al quadrato
-T11_vendita_auto_bc_quadr = (T11_vendita_auto_bc).^2;
-histfit(T11_vendita_auto_bc_quadr,20,'normal')
-skewness(T11_vendita_auto_bc_quadr)    % Asimmetria positiva
-kurtosis(T11_vendita_auto_bc_quadr)    % Platicurticità
+T11_emissioni_bc_quadr = (T11_EMISSIONI_bc).^2;
+histfit(T11_emissioni_bc_quadr,20,'normal')
+skewness(T11_emissioni_bc_quadr)    
+kurtosis(T11_emissioni_bc_quadr)    
 %valuti se è cambiato qualcosa con test normalità
-[h,p,jbstat,critval] = jbtest(T11_vendita_auto_bc_quadr,0.05)   % Test al 5% --> Non rigetto H0 --> norm
-[h1,p1,jbstat1,critval1] = jbtest(T11_vendita_auto_bc_quadr,0.01)   % Test al 1% --> Non rigetto H0 --> norm
-[h2,p2,jbstat2,critval2] = jbtest(T11_vendita_auto_bc_quadr, 0.10)   % Test al 1% --> Non rigetto H0 --> norm   --> IN QUESTO CASO LA soglia è 1% non posso rigettare
-[h3,p3,dstat3,critval3] = lillietest(T11_vendita_auto_bc_quadr,'Alpha',0.05)  % Rigetto al 5%, non rigetto al 1%
-
-
-
+[h,p,jbstat,critval] = jbtest(T11_emissioni_bc_quadr,0.05)   % Test al 5% 
+[h1,p1,jbstat1,critval1] = jbtest(T11_emissioni_bc_quadr,0.01)   % Test al 1% 
+[h2,p2,jbstat2,critval2] = jbtest(T11_emissioni_bc_quadr, 0.10)   % Test al 10% 
+[h3,p3,dstat3,critval3] = lillietest(T11_emissioni_bc_quadr,'Alpha',0.05)
+%}
 
 %4. scatter plot pre regressione
-% VENDITA AUTO vs Consumo energia non rinnovabile
-scatter(T11.vendita_auto,T11.Consum_petrolio_Trasp)    %correlazione tra i due non è altissima ma positiva
-h1 = lsline
-h1.Color = 'r';
-h1.LineWidth = 2;
-
-% VENDITA AUTO vs Consumo energia rinnovabile
-scatter(T11.vendita_auto,T11.Consum_RinnoTOT)
-lsline
-
-% Grafici multipli affiancati  --> ho raggruppato tutto nello stesso plot
+% Grafici multipli affiancati 
 f5 = figure
 subplot(1,2,1)
 set(f5,'position',[100,100,1250,675]);
-scatter(T11.vendita_auto,T11.Consum_NRinnTOT)
+scatter(T11.Emiss_C02_NTotE,T11.Produz_Carbone)
 h1 = lsline
 h1.Color = 'r';
 h1.LineWidth = 2;
-title('VENDITA AUTO vs Consumo energia non rinnovabile')
-xlabel('Numero auto (Mln)') 
-ylabel('Energia Non Rinnovabili [quadrilioni di BTU]')
+title('Emissioni C0_2 vs Produzione Carbone')
+xlabel('Quantità emessa [Mln di tonnellate]') 
+ylabel('Produzione Carbone [quadrilioni di BTU]')
 subplot(1,2,2)
-scatter(T11.vendita_auto,T11.Consum_RinnoTOT)
+scatter(T11.Emiss_C02_NTotE,T11.Produz_Eolica)
 h2 = lsline
 h2.Color = 'b';
 h2.LineWidth = 2;
-title('VENDITA AUTO vs Consumo energia rinnovabile') 
-xlabel('Numero auto (Mln)')
-ylabel('Energia Rinnovabili [quadrilioni di BTU]')
-saveas(f5,[pwd '\immagini\05.ScatterPlotVenditeAuto_Energie.png'])
+title('Emissioni C0_2 vs Produzione Eolica') 
+xlabel('Quantità emessa [Mln di tonnellate]')
+ylabel('Produzione Eolica [quadrilioni di BTU]')
+saveas(f5,[pwd '\immagini\05.ScatterPlot_Carbone_Eolica.png'])
 
 %5. correlazione lineare
-tt = corr(T11{:,{'vendita_auto','Consum_NRinnTOT','Consum_RinnoTOT'}})  % deve essere una matrice dopo input quindi graffe
-rowNames = {'Vendita_auto','Consum_NRinnTOT','Consum_RinnoTOT'};
-colNames = {'Vendita_auto','Consum_NRinnTOT','Consum_RinnoTOT'};
-sTable = array2table(tt,'RowNames',rowNames,'VariableNames',colNames)     %lo trasformo in una table per farlo diventare più bello
+tt = corr(T11{:,{'Emiss_C02_NTotE','Produz_Carbone','Produz_Eolica'}})
+rowNames = {'Emissioni CO_2 TOT','Prod_Carbone','Prod_Eolica'};
+colNames = {'Emissioni CO_2 TOT','Prod_Carbone','Prod_Eolica'};
+sTable = array2table(tt,'RowNames',rowNames,'VariableNames',colNames)  
 
-%Grafico aggregato
+%Scatter per più variabili con R^2
 f6 = figure
 set(f6,'position',[100,100,1250,675]);
-varNames = {'PEoli','PCarb','CRinn','CNRin','carbo','EmC02'};
-[R,PValue,H] = corrplot(T11{:,{'Produz_Eolica','Produz_Carbone','Consum_RinnoTOT','Consum_NRinnTOT','Emiss_C02_Carbo','Emiss_C02_NTotE'}},'varNames',varNames)
-saveas(f6,[pwd '\immagini\06.MatriceCorrelazioneVenditeAuto_Energie.png'])
+varNames = {'PEoli','PCarb','CRinn','CNRin','CFosTr','Bioma','EmC02'};
+[R,PValue,H] = corrplot(T11{:,{'Produz_Eolica','Produz_Carbone','Consum_RinnoTOT','Consum_NRinnTOT','Consum_CFosTras','Produz_Biomasse','Emiss_C02_NTotE'}},'varNames',varNames)
+saveas(f6,[pwd '\immagini\06.ScatterPlot_Produzioni_Consumi.png'])
 
 
 %6. modello di regressione su variabili fortemente correlate
 %%% REGRESSIONE LINEARE SEMPLICE
 %Regressione lineare semplice: y_t = beta0 + beta1*x_t + epsilon_t
-mhat = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars','Produz_Carbone')    %%% MODIFICARE PREDICTOR IN VENDITA_AUTO
+mhat = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars','Produz_Carbone')   
 %%% Coefficienti stimati
 mhat.Coefficients
 % Intercetta significativa ad ogni livello di significatività (pv < 0.01)
-    % Ad una temperatura di 0° è associata una concentrazione di 47.405 mg/m3 
-    % di NO2 
-% Temperatura significativa ad ogni livello di significatività (pv < 0.01)
-    % Ad un incremento di 1° di temperatura è associata una riduzione di -1.38
-    % mg/m3 nelle concentrazioni di NO2
+% Carbone significativo ad ogni livello di significatività (pv < 0.01)
+% R-squared: 0.31, modello non molto significativo utilizzando però solo
+% una variabile
+
 %%% Significatività complessiva del modello
 anova(mhat,'summary')
 
@@ -210,56 +196,51 @@ plot(T11.Rif_Mese, T11.Emiss_C02_NTotE)
 hold on
 plot(T11.Rif_Mese, mhat.Fitted)
 hold off
-title('VENDITA AUTO reale vs stimata (fitting lineare una variabile)') 
-xlabel('Anni')
-ylabel('Mln automobili')
+title('Emissioni C0_2 reali vs stimate (fitting lineare una variabile)') 
+xlabel('Tempo [Mesi]')
+ylabel('Quantità emessa [Mln di tonnellate]')
 legend('Emissioni di CO2 dataset','Emissioni di C02 stimati')
 saveas(f7,[pwd '\immagini\07.VenditeAuto_realeVSstimata_Regr_Sempl.png'])
 
-% 'Test for zero slopes' = F-test sui coefficienti
-% PV < 0.01 --> Modello significativo nel complesso per ogni alpha
 %%% Adattamento del modello
 mhat.Rsquared
-% Il modello è in grado di spiegare l'84% della variabilità complessiva di Y
-%%% Valori previsti/fittati/stimati: yhat_t
-fit1 = mhat.Fitted;              %--------------> VALORI PREVISTI DAL MODELLO (quindi la retta)
+% Il modello è in grado di spiegare l'30% della variabilità complessiva di Y
+%%% Valori fittati dal modello: yhat_t
+fit1 = mhat.Fitted             
 %%% Residui di regressione: y_t - yhat_t
-res1 = mhat.Residuals.Raw;
+res1 = mhat.Residuals.Raw
 
-%%%ANALISI dei residui (ossia la stima degli epsilon nel modello di
-%%%regressione)
+
+%%%ANALISI dei residui
 % Diagnostiche sui residui: normalità
 f8 = figure()
 set(f8,'position',[100,100,1250,675]);
 subplot(1,2,1)
 histfit(res1)
 title('Distribuzione dei residui di regressione')
-xlabel('\mug/m^{3}') 
+xlabel('Quantità emessa [Mln di tonnellate]') 
 ylabel('Conteggio')
-%%%% prima cosa che devo verificare è che i residui siano normali
-%%%% (istogramma con campana e valore centrale =0)
 
 % Diagnostiche sui residui: incorrelazione tra fittati e residui
-% IMPORTANTE che non siano correlati i fittati e residui
 subplot(1,2,2)
-scatter(fit1,res1)         %%%%%%%%%%% INTERPRETARE IL RISULTATO
+scatter(fit1,res1)        
 h1 = lsline
-h1.Color = 'black';
+h1.Color = 'red';
 h1.LineWidth = 2;
 xlabel('Valori fittati'); 
 ylabel('Residui di regressione');
-text(30,0.5,sprintf('rho = %0.3f',round(corr(res1,fit1),3)))
-saveas(f8,[pwd '\immagini\08.Residui_Regr_Lin_VenditeAuto.png'])
+%text(30,0.5,sprintf('rho = %0.3f',round(corr(res1,fit1),3)))
+saveas(f8,[pwd '\immagini\08.Residui_Regr_Lin_EmissioniC02.png'])
 
-% controllo MEGLIO con test se sono normali i residui
-skewness(res1)    % Asimmetria negativa
-kurtosis(res1)    % distribuzione a campana
-[h,p,jbstat,critval] = jbtest(res1, 0.05)   % PV=0.5 --> Non rigetto H0 --> norm
-[h,p,dstat,critval] = lillietest(res1,'Alpha',0.05)  % PV=0.5 --> Non rigetto H0 --> norm
-
-%posso voler vedere il p-value del test, la media dei residui e un
-%intervallo di confidenza sui residui con T-TEST
-[h3,p3,ci3,stats3] = ttest(res1)
+% Indici normalità residui
+skewness(res1)   
+kurtosis(res1)                                                           %forte normalità
+% Test normalità residui
+[h,p,jbstat,critval] = jbtest(res1, 0.05);                               % pv = 0.09 --> normalità 
+[h,p,jbstat,critval] = jbtest(res1, 0.01);                               % pv = 0.09 --> normalità
+[h,p,dstat,critval] = lillietest(res1,'Alpha',0.05);                     % pv = 0.0326 --> non normalità
+[h,p,ci,stats] = ttest(res1);                                            % perfettamente normale
+%I test ci permettono di affermare che la distribuzione è normale (3/4) 
 
 
 %%% REGRESSIONE LINEARE MULTIPLA:
@@ -267,90 +248,93 @@ kurtosis(res1)    % distribuzione a campana
 mhat2 = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars',{'Produz_Eolica','Produz_Carbone','Consum_CFosTras','Produz_Biomasse'})
 %%% Coefficienti stimati
 mhat2.Coefficients
+% Intercetta significativa (pv < 0.01)
+% Altre variabili significative (pv < 0.01) --> Prod. Biomassa la più
+% significativa
+% R-squared: 0.515, migliore significatività del modello.
 
-%confronto reali vs fitted (2 variabili)
+%confronto reali vs fitted (+ variabili)
 f9 = figure('Position',[100,100,1250,675])
 plot(T11.Rif_Mese, T11.Emiss_C02_NTotE)
 hold on
 plot(T11.Rif_Mese, mhat2.Fitted)
 hold off
-title('VENDITA AUTO reale vs stimata (fitting lineare due variabili)') 
-xlabel('Anni')
-ylabel('Mln automobili')
-legend('Emissioni di CO2 dataset','Emissioni di C02 stimati')
-saveas(f9,[pwd '\immagini\09.VenditeAuto_realeVSstimata_Regr_Multipla.png'])
+title('Emssione C0_2 reali vs stimate (fitting lineare più variabili)') 
+xlabel('Tempo [Mesi]')
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Emissioni di CO2 dataset','Emissioni di C02 stimate')
+saveas(f9,[pwd '\immagini\09.Emissioni_realiVSstimate_Regr_Multipla.png'])
+
 
 anova(mhat2,'summary')
-% 'Test for zero slopes' = F-test sui coefficienti
-% PV < 0.01 --> Modello significativo nel complesso per ogni alpha
 %%% Adattamento del modello
-mhat2.Rsquared
-% Il modello è in grado di spiegare l'84% della variabilità complessiva di Y
-%%% Valori previsti/fittati/stimati: yhat_t
-fit2 = mhat2.Fitted;              %--------------> VALORI PREVISTI DAL MODELLO (quindi la retta)
+mhat2.Rsquared;
+% Il modello è in grado di spiegare l'30% della variabilità complessiva di Y
+%%% Valori fittati dal modello: yhat_t
+fit2 = mhat2.Fitted;             
 %%% Residui di regressione: y_t - yhat_t
 res2 = mhat2.Residuals.Raw;
 
-%%%ANALISI dei residui (ossia la stima degli epsilon nel modello di
-%%%regressione)
+%%%ANALISI dei residui 
 % Diagnostiche sui residui: normalità
 f10 = figure()
 set(f10,'position',[100,100,1250,675]);
 subplot(1,2,1)
 histfit(res2)
 title('Distribuzione dei residui di regressione')
-xlabel('\mug/m^{3}') 
+xlabel('Quantità emessa [Mln di tonnellate]') 
 ylabel('Conteggio')
-%%%% prima cosa che devo verificare è che i residui siano normali
-%%%% (istogramma con campana e valore centrale =0)
 
 % Diagnostiche sui residui: incorrelazione tra fittati e residui
-% IMPORTANTE che non siano correlati i fittati e residui
 subplot(1,2,2)
-scatter(fit2,res2)         %%%%%%%%%%% INTERPRETARE IL RISULTATO
+scatter(fit2,res2)        
 h1 = lsline
 h1.Color = 'black';
 h1.LineWidth = 2;
 xlabel('Valori fittati'); 
 ylabel('Residui di regressione');
-%text(30,0.5,sprintf('rho = %0.3f',round(corr(res2,fit2),3))) %CAPIRE SIGN.
-saveas(f10,[pwd '\immagini\10.Residui_Regr_Mul_VenditeAuto.png'])
+%text(30,0.5,sprintf('rho = %0.3f',round(corr(res2,fit2),3)))
+saveas(f10,[pwd '\immagini\10.Residui_Regr_Mul_EmissioneC02.png'])
 
-% controllo MEGLIO con test se sono normali i residui
-skewness(res2)    % Asimmetria negativa
-kurtosis(res2)    % distribuzione a campana
-[h,p,jbstat,critval] = jbtest(res2, 0.05)   % PV=0.5 --> Non rigetto H0 --> norm
-[h,p,dstat,critval] = lillietest(res2,'Alpha',0.05)  % PV=0.5 --> Non rigetto H0 --> norm
+% Indici normalità residui
+skewness(res2)    
+kurtosis(res2)                                                         %molto vicino alla normalità
+% Test normalità residui
+[h,p,jbstat,critval] = jbtest(res2, 0.05);                              % pv = 0.04 --> non normalità
+[h,p,jbstat,critval] = jbtest(res2, 0.01);                              % pv = 0.04 --> normalità
+[h,p,dstat,critval] = lillietest(res2,'Alpha',0.05)                     % pv = 0.0541 --> normalità
+[h3,p3,ci3,stats3] = ttest(res2)                                        % perfettamente normale
+%I test ci permettono di affermare che la distribuzione è normale (3/4) 
 
-%posso voler vedere il p-value del test, la media dei residui e un
-%intervallo di confidenza sui residui con T-TEST
-[h3,p3,ci3,stats3] = ttest(res2)
 
-
-%%%%%%%%% MODIFICARE DA QUESTO PUNTO.
-
-%7. model selection
 %%% Model selection: STEPWISE regression  (in questo caso da modello vuoto a pieno)
-% 1. Elenco tutte le variabili di regressione di interesse
-xvars = [{'Temperatura'},{'Umidita'},{'CO'},{'BC'},{'O3'},{'PM10'}];
-% 2. Seleziono le colonne corrispondenti
-Tm_sel = Tm(:,[xvars, {'log_NO2'}]);
-% 3. Stimo modello con tutti i regressori (modello full)
-mhat_full = fitlm(Tm_sel,'ResponseVar','log_NO2')
-% 4. Applico algoritmo stepwise (dal modello vuoto a quello pieno)
-X = Tm_sel{:,xvars};
-y = Tm_sel{:,'log_NO2'};
+% 1. Seleziono le colonne corrispondenti PRODUZIONE e CONSUMI
+xvars = [{'Produz_Carbone'},{'Produz_GasNatur'},{'Produz_PetrGreg'},{'Produz_CFosTOT'},{'Produz_Idroelet'},{'Produz_Eolica'},{'Produz_Biomasse'},{'Produz_RinnoTOT'},{'Produz_EnePrTOT'},{'Consum_RinnoTOT'},{'Consum_NRinnTOT'},{'Consum_EnePrTOT'},{'Consum_CFosTras'},{'Consum_petrolio_Trasp'}];
+T11_sel = T11(:,[xvars,{'Emiss_C02_NTotE'}]);
+% 2. Applico algoritmo stepwise (dal modello vuoto a quello pieno)
+% Divisione Predittori (X) e Variabile risposta (Y)
+X = T11_sel{:,xvars};
+y = T11_sel{:,'Emiss_C02_NTotE'};
 [b,se,pval,in_stepwise,stats,nextstep,history] = stepwisefit(X,y,...
-    'PRemove',0.15,'PEnter',0.10);                                          %penultimo rimuovo variabile se suo p-value < 15%
-% 5. Valuto modello selezionato con stepwise ->solo con le variabile 1,4,6
-mhat_step = fitlm(Tm_sel(:,[in_stepwise,true]),'ResponseVar','log_NO2')
-% 6. Osservo errore quadratico medio di previsione
+    'PRemove',0.10,'PEnter',0.01);                                          %penultimo rimuovo variabile se suo p-value < 15%
+% 3. Valuto modello selezionato con stepwise
+mhat_step = fitlm(T11_sel(:,[in_stepwise,true]),'ResponseVar','Emiss_C02_NTotE')
+% 4. Osservo errore quadratico medio di previsione
 disp('RMSE con stepwise model selection:')
 disp(stats.rmse)
 
-%teoricamente nel modello mi seleziona come variabile significativa anche
-%BLACK CARBON colonna 4, ma questa a p-value 6% e fa abbastanza schifo,
-%perciò dovrei andare in PRemove e mettere 0.05
+f11 = figure('Position',[100,100,1250,675])
+plot(T11.Rif_Mese, T11.Emiss_C02_NTotE)
+hold on
+plot(T11.Rif_Mese, mhat_step.Fitted)
+hold off
+title('Emssione C0_2 reali vs stimate (stepwise)') 
+xlabel('Tempo [Mesi]')
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Emissioni di CO2 dataset','Emissioni di C02 stimate')
+saveas(f11,[pwd '\immagini\11.Emissioni_realiVSstimate_Stepwise.png'])
+
+%COMMENTO MODELLO CON STEPWISE (R^2 = 0.993)
 
 
 %%% Model selection: LASSO algorithm
@@ -358,30 +342,57 @@ disp(stats.rmse)
 % Lasso mediante la cross-validazione fa un ragionamento previsivo. Trovo
 % quei valori penalizzati tale che la previsione è la migliore con un
 % modello lineare.
+
+% Divisione dataset in training e test 
+X = T11_sel(:,xvars);
+X_train = X([1:111],:)
+y = T11_sel(:,'Emiss_C02_NTotE');
+y_train_m = table2array(y_train)
+y_train = y([1:111],:)
+X_train_m = table2array(X_train)
+X_test = X([112:end],:)
+X_test_m = table2array(X_test)
+y_test = y([112:end],:)
+y_test_m = table2array(y_test)
+X2 = T11_sel([112:end],:);
+periodo = T11.Rif_Mese
+Period = periodo([112:end],:)
+
 % 1. Elenco tutte le variabili di regressione di interesse
-xvars = [{'Temperatura'},{'Umidita'},{'CO'},{'BC'},{'O3'},{'PM10'}];
-% 2. Seleziono le colonne corrispondenti
-Tm_sel = Tm(:,[xvars, {'log_NO2'}]);
-% 3. Stimo modello con tutti i regressori (modello full)
-mhat_full = fitlm(Tm_sel,'ResponseVar','log_NO2')
-% 4. Applico algoritmo LASSO con cross-validation dei parametri 20-folds
-X = Tm_sel{:,xvars};
-y = Tm_sel{:,'log_NO2'};
+xvars = [{'Produz_Carbone'},{'Produz_GasNatur'},{'Produz_PetrGreg'},{'Produz_CFosTOT'},{'Produz_Idroelet'},{'Produz_Eolica'},{'Produz_Biomasse'},{'Produz_RinnoTOT'},{'Produz_EnePrTOT'},{'Consum_RinnoTOT'},{'Consum_NRinnTOT'},{'Consum_EnePrTOT'},{'Consum_CFosTras'},{'Consum_petrolio_Trasp'}];
+% 2. Applico algoritmo stepwise (dal modello vuoto a quello pieno)
+% Divisione Predittori (X) e Variabile risposta (Y)
+
 %BHAT testa 100 lambda differenti e rispetto al numero di previsori che
-%sono andato a dargli. Risultato output bhat matrice 6*100
-[Bhat,lasso_st]=lasso(X,y,'CV',20,'MCReps',5,...
+%sono andato a dargli. Risultato output bhat matrice 14*100
+[Bhat,lasso_st]=lasso(X_train_m,y_train_m,'CV',20,'MCReps',5,...
                 'Options',statset('UseParallel',true),...
                 'PredictorNames',xvars);
-% 5. Identifico le varaibili selezionate con LASSO
-lasso_st.IndexMinMSE                                %--> migliore modello con bhat, è il 36 lambda che manda a 0 solo la 3° variabile e le altre le tiene
+% 5. Identifico le variabili selezionate con LASSO
+lasso_st.IndexMinMSE                                %--> migliore modello con bhat, è il 1 lambda
 %sto selezionando le variabili che vanno bene ottenute con lasso e 
 in_lasso = not(Bhat(:,lasso_st.IndexMinMSE)==0);
+
 % 6. Valuto modello selezionato
-mhat_lasso = fitlm(Tm_sel(:,[in_lasso(:)',true]),'ResponseVar','log_NO2')
+mhat_lasso = fitlm(X2(:,[in_lasso(:)',true]),'ResponseVar','Emiss_C02_NTotE')
 % 7 Osservo errore di previsione associato al modello selezionato
 disp('RMSE con 20-folds cross-validation:')
 disp(sqrt(lasso_st.MSE(lasso_st.IndexMinMSE)))
 
+%Confronto
+f12 = figure('Position',[100,100,1250,675])
+plot(Period, y_test.Emiss_C02_NTotE)
+hold on
+plot(Period, mhat_lasso.Fitted)
+hold off
+title('Emssione C0_2 reali vs stimate (Lasso)') 
+xlabel('Tempo [Mesi]')
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Emissioni di CO2 dataset','Emissioni di C02 stimate')
+saveas(f12,[pwd '\immagini\12.Emissioni_realiVSstimate_Lasso.png'])
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Rappresentazione grafica della serie storica
 plot(gas_agr.Data,gas_agr.Agricoltura)
