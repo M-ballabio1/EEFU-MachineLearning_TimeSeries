@@ -14,7 +14,7 @@ T1 = readtable('DATA SET UFFICIALE.xlsx',opts2,'Sheet','YEAR');
 
 %% RINOMINARE COLONNE
 % T.Month = datetime(T.Month,"Format","dd-MM-uuuu"); in realtà non serve 
-T.Properties.VariableNames = {'Rif_Mese','Emiss_C02_Carbo','Emiss_C02_GasNa','Emiss_C02_BenAe','Emiss_C02_CoODi','Emiss_C02_LiqId','Emiss_C02_CarJe','Emiss_C02_Keros','Emiss_C02_Lubri','Emiss_C02_BenMo','Emiss_C02_CokPe','Emiss_C02_CoORe','Emiss_C02_AltrP','Emiss_C02_Petro','Emiss_C02_NTotE','Produz_Carbone','Produz_GasNatur','Produz_PetrGreg','Produz_CFosTOT','Produz_Idroelet','Produz_Eolica','Produz_Biomasse','Produz_RinnoTOT','Produz_EnePrTOT','Consum_RinnoTOT','Consum_NRinnTOT','Consum_EnePrTOT','Import_EnePrTOT','Import_PetrOPEC','Consum_CFosTras','CDD','HDD','vendita_auto','Consum_petrolio_Trasp'}
+T.Properties.VariableNames = {'Rif_Mese','Emiss_C02_Carbo','Emiss_C02_GasNa','Emiss_C02_BenAe','Emiss_C02_CoODi','Emiss_C02_LiqId','Emiss_C02_CarJe','Emiss_C02_Keros','Emiss_C02_Lubri','Emiss_C02_BenMo','Emiss_C02_CokPe','Emiss_C02_CoORe','Emiss_C02_AltrP','Emiss_C02_Petro','Emiss_C02_NTotE','Produz_Carbone','Produz_GasNatur','Produz_PetrGreg','Produz_CFosTOT','Produz_Idroelet','Produz_Eolica','Produz_Biomasse','Produz_RinnoTOT','Produz_EnePrTOT','Consum_RinnoTOT','Consum_NRinnTOT','Consum_EnePrTOT','Import_EnePrTOT','Import_PetrOPEC','Consum_CFosTras','CDD','HDD','vendita_auto','Consum_petrolio_Trasp','Consum_Carb_Elettr','Consum_Carb_Indus'};
 
 %% PLOT DATA
 f1 = figure('Position',[100,100,1250,675])  %Scelta dimensioni
@@ -171,21 +171,22 @@ sTable = array2table(tt,'RowNames',rowNames,'VariableNames',colNames)
 %Scatter per più variabili con R^2
 f6 = figure
 set(f6,'position',[100,100,1250,675]);
-varNames = {'PEoli','PCarb','CRinn','CNRin','CFosTr','Bioma','EmC02'};
-[R,PValue,H] = corrplot(T11{:,{'Produz_Eolica','Produz_Carbone','Consum_RinnoTOT','Consum_NRinnTOT','Consum_CFosTras','Produz_Biomasse','Emiss_C02_NTotE'}},'varNames',varNames)
+varNames = {'PEoli','PCarb','CRinn','CNRin','CFosTr','CarbEL','CarbIN','EmC02'};
+[R,PValue,H] = corrplot(T11{:,{'Produz_Eolica','Produz_Carbone','Consum_RinnoTOT','Consum_NRinnTOT','Consum_CFosTras','Consum_Carb_Elettr','Consum_Carb_Indus','Emiss_C02_NTotE'}},'varNames',varNames)
 saveas(f6,[pwd '\immagini\06.ScatterPlot_Produzioni_Consumi.png'])
 
 
 %6. modello di regressione su variabili fortemente correlate
 %%% REGRESSIONE LINEARE SEMPLICE
 %Regressione lineare semplice: y_t = beta0 + beta1*x_t + epsilon_t
-mhat = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars','Produz_Carbone')   
+mhat = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars','Consum_Carb_Elettr')   
 %%% Coefficienti stimati
 mhat.Coefficients
-% Intercetta significativa ad ogni livello di significatività (pv < 0.01)
-% Carbone significativo ad ogni livello di significatività (pv < 0.01)
-% R-squared: 0.31, modello non molto significativo utilizzando però solo
-% una variabile
+% Intercetta significativa ad ogni livello di significatività (pv < 0.01).
+% Consumo Carbone sel settore elettrico significativo ad ogni livello di
+% significatività (pv < 0.01).
+% R-squared: 0.54, modello non molto significativo utilizzando però solo
+% una variabile.
 
 %%% Significatività complessiva del modello
 anova(mhat,'summary')
@@ -236,22 +237,22 @@ saveas(f8,[pwd '\immagini\08.Residui_Regr_Lin_EmissioniC02.png'])
 skewness(res1)   
 kurtosis(res1)                                                           %forte normalità
 % Test normalità residui
-[h,p,jbstat,critval] = jbtest(res1, 0.05);                               % pv = 0.09 --> normalità 
-[h,p,jbstat,critval] = jbtest(res1, 0.01);                               % pv = 0.09 --> normalità
-[h,p,dstat,critval] = lillietest(res1,'Alpha',0.05);                     % pv = 0.0326 --> non normalità
-[h,p,ci,stats] = ttest(res1);                                            % perfettamente normale
+[h,p,jbstat,critval] = jbtest(res1, 0.05)                               % pv = 0.0297 --> non normalità 
+[h,p,jbstat,critval] = jbtest(res1, 0.01)                               % pv = 0.0297 --> normalità
+[h,p,dstat,critval] = lillietest(res1,'Alpha',0.05)                     % pv = 0.001  --> non normalità
+[h,p,ci,stats] = ttest(res1)                                            % normalità usando il range (ttest)
 %I test ci permettono di affermare che la distribuzione è normale (3/4) 
 
 
 %%% REGRESSIONE LINEARE MULTIPLA:
 % Modello log-lineare: la dipendente è logaritmica, i regressori sono lineari
-mhat2 = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars',{'Produz_Eolica','Produz_Carbone','Consum_CFosTras','Produz_Biomasse'})
+mhat2 = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars',{'Produz_Eolica','Produz_Carbone','Consum_CFosTras','Produz_Biomasse','Consum_Carb_Elettr'})
 %%% Coefficienti stimati
 mhat2.Coefficients
 % Intercetta significativa (pv < 0.01)
-% Altre variabili significative (pv < 0.01) --> Prod. Biomassa la più
+% Altre variabili significative (pv < 0.01) --> Consum. Carb elettr la più
 % significativa
-% R-squared: 0.515, migliore significatività del modello.
+% R-squared: 0.725, migliore significatività del modello.
 
 %confronto reali vs fitted (+ variabili)
 f9 = figure('Position',[100,100,1250,675])
@@ -298,25 +299,25 @@ saveas(f10,[pwd '\immagini\10.Residui_Regr_Mul_EmissioneC02.png'])
 
 % Indici normalità residui
 skewness(res2)    
-kurtosis(res2)                                                         %molto vicino alla normalità
+kurtosis(res2)                                                         %abbastanza vicini alla normalità
 % Test normalità residui
-[h,p,jbstat,critval] = jbtest(res2, 0.05);                              % pv = 0.04 --> non normalità
-[h,p,jbstat,critval] = jbtest(res2, 0.01);                              % pv = 0.04 --> normalità
-[h,p,dstat,critval] = lillietest(res2,'Alpha',0.05)                     % pv = 0.0541 --> normalità
+[h,p,jbstat,critval] = jbtest(res2, 0.05);                              % pv = 0.228 --> normalità
+[h,p,jbstat,critval] = jbtest(res2, 0.01);                              % pv = 0.228 --> normalità
+[h,p,dstat,critval] = lillietest(res2,'Alpha',0.05)                     % pv = 0.307 --> normalità
 [h3,p3,ci3,stats3] = ttest(res2)                                        % perfettamente normale
-%I test ci permettono di affermare che la distribuzione è normale (3/4) 
+%I test ci permettono di affermare che la distribuzione è normale (4/4) 
 
 
 %%% Model selection: STEPWISE regression  (in questo caso da modello vuoto a pieno)
 % 1. Seleziono le colonne corrispondenti PRODUZIONE e CONSUMI
-xvars = [{'Produz_Carbone'},{'Produz_GasNatur'},{'Produz_PetrGreg'},{'Produz_CFosTOT'},{'Produz_Idroelet'},{'Produz_Eolica'},{'Produz_Biomasse'},{'Produz_RinnoTOT'},{'Produz_EnePrTOT'},{'Consum_RinnoTOT'},{'Consum_NRinnTOT'},{'Consum_EnePrTOT'},{'Consum_CFosTras'},{'Consum_petrolio_Trasp'}];
+xvars = [{'Produz_Carbone'},{'Produz_GasNatur'},{'Produz_PetrGreg'},{'Produz_CFosTOT'},{'Produz_Idroelet'},{'Produz_Eolica'},{'Produz_Biomasse'},{'Produz_RinnoTOT'},{'Consum_RinnoTOT'},{'Consum_CFosTras'},{'Consum_petrolio_Trasp'},{'Consum_Carb_Elettr'},{'Consum_Carb_Indus'}];
 T11_sel = T11(:,[xvars,{'Emiss_C02_NTotE'}]);
 % 2. Applico algoritmo stepwise (dal modello vuoto a quello pieno)
 % Divisione Predittori (X) e Variabile risposta (Y)
 X = T11_sel{:,xvars};
 y = T11_sel{:,'Emiss_C02_NTotE'};
 [b,se,pval,in_stepwise,stats,nextstep,history] = stepwisefit(X,y,...
-    'PRemove',0.10,'PEnter',0.01);                                          %penultimo rimuovo variabile se suo p-value < 15%
+    'PRemove',0.15,'PEnter',0.10);                                          %penultimo rimuovo variabile se suo p-value < 15%
 % 3. Valuto modello selezionato con stepwise
 mhat_step = fitlm(T11_sel(:,[in_stepwise,true]),'ResponseVar','Emiss_C02_NTotE')
 % 4. Osservo errore quadratico medio di previsione
@@ -334,7 +335,7 @@ ylabel('Quantità emessa [Mln di tonnellate]')
 legend('Emissioni di CO2 dataset','Emissioni di C02 stimate')
 saveas(f11,[pwd '\immagini\11.Emissioni_realiVSstimate_Stepwise.png'])
 
-%COMMENTO MODELLO CON STEPWISE (R^2 = 0.993)
+%COMMENTO MODELLO CON STEPWISE (R^2 = 0.863)
 
 
 %%% Model selection: LASSO algorithm
@@ -343,23 +344,26 @@ saveas(f11,[pwd '\immagini\11.Emissioni_realiVSstimate_Stepwise.png'])
 % quei valori penalizzati tale che la previsione è la migliore con un
 % modello lineare.
 
+% 1. Elenco tutte le variabili di regressione di interesse
+xvars = [{'Produz_Carbone'},{'Produz_GasNatur'},{'Produz_PetrGreg'},{'Produz_CFosTOT'},{'Produz_Idroelet'},{'Produz_Eolica'},{'Produz_Biomasse'},{'Produz_RinnoTOT'},{'Consum_RinnoTOT'},{'Consum_CFosTras'},{'Consum_petrolio_Trasp'},{'Consum_Carb_Elettr'},{'Consum_Carb_Indus'}];
+
 % Divisione dataset in training e test 
 X = T11_sel(:,xvars);
-X_train = X([1:111],:)
-y = T11_sel(:,'Emiss_C02_NTotE');
-y_train_m = table2array(y_train)
-y_train = y([1:111],:)
-X_train_m = table2array(X_train)
-X_test = X([112:end],:)
-X_test_m = table2array(X_test)
-y_test = y([112:end],:)
-y_test_m = table2array(y_test)
-X2 = T11_sel([112:end],:);
-periodo = T11.Rif_Mese
-Period = periodo([112:end],:)
+X_train = X([1:111],:);
+X_train_m = table2array(X_train);
+X_test = X([112:end],:);
+X_test_m = table2array(X_test);
 
-% 1. Elenco tutte le variabili di regressione di interesse
-xvars = [{'Produz_Carbone'},{'Produz_GasNatur'},{'Produz_PetrGreg'},{'Produz_CFosTOT'},{'Produz_Idroelet'},{'Produz_Eolica'},{'Produz_Biomasse'},{'Produz_RinnoTOT'},{'Produz_EnePrTOT'},{'Consum_RinnoTOT'},{'Consum_NRinnTOT'},{'Consum_EnePrTOT'},{'Consum_CFosTras'},{'Consum_petrolio_Trasp'}];
+y = T11_sel(:,'Emiss_C02_NTotE');
+y_train = y([1:111],:);
+y_train_m = table2array(y_train);
+y_test = y([112:end],:);
+y_test_m = table2array(y_test);
+
+X2 = T11_sel([112:end],:);
+periodo = T11.Rif_Mese;
+Period = periodo([112:end],:);
+
 % 2. Applico algoritmo stepwise (dal modello vuoto a quello pieno)
 % Divisione Predittori (X) e Variabile risposta (Y)
 
@@ -391,6 +395,8 @@ ylabel('Quantità emessa [Mln di tonnellate]')
 legend('Emissioni di CO2 dataset','Emissioni di C02 stimate')
 saveas(f12,[pwd '\immagini\12.Emissioni_realiVSstimate_Lasso.png'])
 
+
+%R^2 = 0.942
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
