@@ -171,21 +171,21 @@ sTable = array2table(tt,'RowNames',rowNames,'VariableNames',colNames)
 %Scatter per più variabili con R^2
 f6 = figure
 set(f6,'position',[100,100,1250,675]);
-varNames = {'PEoli','PCarb','CRinn','CNRin','CFosTr','CarbEL','CarbIN','EmC02'};
-[R,PValue,H] = corrplot(T11{:,{'Produz_Eolica','Produz_Carbone','Consum_RinnoTOT','Consum_NRinnTOT','Consum_CFosTras','Consum_Carb_Elettr','Consum_Carb_Indus','Emiss_C02_NTotE'}},'varNames',varNames)
+varNames = {'PEoli','PCarb','CRinn','CNRin','CFosTr','CCarE','CCarT','EmC02'};
+[R,PValue,H] = corrplot(T11{:,{'Produz_Eolica','Produz_Carbone','Consum_RinnoTOT','Consum_NRinnTOT','Consum_CFosTras','Consum_Carb_Elettr','Consum_Carb_TOT','Emiss_C02_NTotE'}},'varNames',varNames)
 saveas(f6,[pwd '\immagini\06.ScatterPlot_Produzioni_Consumi.png'])
 
 
 %6. modello di regressione su variabili fortemente correlate
 %%% REGRESSIONE LINEARE SEMPLICE
 %Regressione lineare semplice: y_t = beta0 + beta1*x_t + epsilon_t
-mhat = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars','Consum_Carb_Elettr')   
+mhat = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars','Consum_Carb_TOT')   
 %%% Coefficienti stimati
 mhat.Coefficients
 % Intercetta significativa ad ogni livello di significatività (pv < 0.01).
-% Consumo Carbone sel settore elettrico significativo ad ogni livello di
+% Consumo Carbone tot significativo ad ogni livello di
 % significatività (pv < 0.01).
-% R-squared: 0.54, modello non molto significativo utilizzando però solo
+% R-squared: 0.537, modello non molto significativo utilizzando però solo
 % una variabile.
 
 %%% Significatività complessiva del modello
@@ -241,18 +241,18 @@ kurtosis(res1)                                                           %forte 
 [h,p,jbstat,critval] = jbtest(res1, 0.01)                               % pv = 0.0297 --> normalità
 [h,p,dstat,critval] = lillietest(res1,'Alpha',0.05)                     % pv = 0.001  --> non normalità
 [h,p,ci,stats] = ttest(res1)                                            % normalità usando il range (ttest)
-%I test ci permettono di affermare che la distribuzione è normale (3/4) 
+%I test ci permettono di affermare che la distribuzione è normale (2/4) 
 
 
 %%% REGRESSIONE LINEARE MULTIPLA:
 % Modello log-lineare: la dipendente è logaritmica, i regressori sono lineari
-mhat2 = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars',{'Produz_Eolica','Produz_Carbone','Consum_CFosTras','Produz_Biomasse','Consum_Carb_Elettr'})
+mhat2 = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars',{'Produz_Eolica','Produz_Carbone','Consum_CFosTras','Produz_Biomasse','Consum_Carb_TOT'})
 %%% Coefficienti stimati
 mhat2.Coefficients
 % Intercetta significativa (pv < 0.01)
-% Altre variabili significative (pv < 0.01) --> Consum. Carb elettr la più
+% Altre variabili significative (pv < 0.01) --> Consum. Carb tot la più
 % significativa
-% R-squared: 0.725, migliore significatività del modello.
+% R-squared: 0.731, migliore significatività del modello.
 
 %confronto reali vs fitted (+ variabili)
 f9 = figure('Position',[100,100,1250,675])
@@ -301,23 +301,23 @@ saveas(f10,[pwd '\immagini\10.Residui_Regr_Mul_EmissioneC02.png'])
 skewness(res2)    
 kurtosis(res2)                                                         %abbastanza vicini alla normalità
 % Test normalità residui
-[h,p,jbstat,critval] = jbtest(res2, 0.05);                              % pv = 0.228 --> normalità
-[h,p,jbstat,critval] = jbtest(res2, 0.01);                              % pv = 0.228 --> normalità
-[h,p,dstat,critval] = lillietest(res2,'Alpha',0.05)                     % pv = 0.307 --> normalità
-[h3,p3,ci3,stats3] = ttest(res2)                                        % perfettamente normale
+[h,p,jbstat,critval] = jbtest(res2, 0.05);                              % pv = 0.267 --> normalità
+[h,p,jbstat,critval] = jbtest(res2, 0.01);                              % pv = 0.267 --> normalità
+[h,p,dstat,critval] = lillietest(res2,'Alpha',0.05);                    % pv = 0.224 --> normalità
+[h3,p3,ci3,stats3] = ttest(res2);                                       % perfettamente normale
 %I test ci permettono di affermare che la distribuzione è normale (4/4) 
 
 
 %%% Model selection: STEPWISE regression  (in questo caso da modello vuoto a pieno)
 % 1. Seleziono le colonne corrispondenti PRODUZIONE e CONSUMI
-xvars = [{'Produz_Carbone'},{'Produz_GasNatur'},{'Produz_PetrGreg'},{'Produz_CFosTOT'},{'Produz_Idroelet'},{'Produz_Eolica'},{'Produz_Biomasse'},{'Produz_RinnoTOT'},{'Consum_RinnoTOT'},{'Consum_CFosTras'},{'Consum_petrolio_Trasp'},{'Consum_Carb_Elettr'},{'Consum_Carb_Indus'}];
+xvars = [{'Produz_Carbone'},{'Produz_GasNatur'},{'Produz_PetrGreg'},{'Produz_CFosTOT'},{'Produz_Idroelet'},{'Produz_Eolica'},{'Produz_Biomasse'},{'Produz_RinnoTOT'},{'Consum_RinnoTOT'},{'Consum_CFosTras'},{'Consum_petrolio_Trasp'},{'Consum_Carb_Elettr'},{'Consum_Carb_TOT'}];
 T11_sel = T11(:,[xvars,{'Emiss_C02_NTotE'}]);
 % 2. Applico algoritmo stepwise (dal modello vuoto a quello pieno)
 % Divisione Predittori (X) e Variabile risposta (Y)
 X = T11_sel{:,xvars};
 y = T11_sel{:,'Emiss_C02_NTotE'};
 [b,se,pval,in_stepwise,stats,nextstep,history] = stepwisefit(X,y,...
-    'PRemove',0.15,'PEnter',0.10);                                          %penultimo rimuovo variabile se suo p-value < 15%
+    'PRemove',0.15,'PEnter',0.05);                                          %penultimo rimuovo variabile se suo p-value < 15%
 % 3. Valuto modello selezionato con stepwise
 mhat_step = fitlm(T11_sel(:,[in_stepwise,true]),'ResponseVar','Emiss_C02_NTotE')
 % 4. Osservo errore quadratico medio di previsione
@@ -335,7 +335,7 @@ ylabel('Quantità emessa [Mln di tonnellate]')
 legend('Emissioni di CO2 dataset','Emissioni di C02 stimate')
 saveas(f11,[pwd '\immagini\11.Emissioni_realiVSstimate_Stepwise.png'])
 
-%COMMENTO MODELLO CON STEPWISE (R^2 = 0.863)
+%COMMENTO MODELLO CON STEPWISE (R^2 = 0.866)
 
 
 %%% Model selection: LASSO algorithm
@@ -345,7 +345,7 @@ saveas(f11,[pwd '\immagini\11.Emissioni_realiVSstimate_Stepwise.png'])
 % modello lineare.
 
 % 1. Elenco tutte le variabili di regressione di interesse
-xvars = [{'Produz_Carbone'},{'Produz_GasNatur'},{'Produz_PetrGreg'},{'Produz_CFosTOT'},{'Produz_Idroelet'},{'Produz_Eolica'},{'Produz_Biomasse'},{'Produz_RinnoTOT'},{'Consum_RinnoTOT'},{'Consum_CFosTras'},{'Consum_petrolio_Trasp'},{'Consum_Carb_Elettr'},{'Consum_Carb_Indus'}];
+xvars = [{'Produz_Carbone'},{'Produz_GasNatur'},{'Produz_PetrGreg'},{'Produz_CFosTOT'},{'Produz_Idroelet'},{'Produz_Eolica'},{'Produz_Biomasse'},{'Produz_RinnoTOT'},{'Consum_RinnoTOT'},{'Consum_CFosTras'},{'Consum_petrolio_Trasp'},{'Consum_Carb_Elettr'},{'Consum_Carb_TOT'}];
 
 % Divisione dataset in training e test 
 X = T11_sel(:,xvars);
@@ -396,53 +396,57 @@ legend('Emissioni di CO2 dataset','Emissioni di C02 stimate')
 saveas(f12,[pwd '\immagini\12.Emissioni_realiVSstimate_Lasso.png'])
 
 
-%R^2 = 0.942
+%R^2 = 0.945
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Possibile analisi training e test applicata anche alla staepwise per
+%%% fare un possibile confronto da inserire nel report
 
 %% Rappresentazione grafica della serie storica
-plot(gas_agr.Data,gas_agr.Agricoltura)
-title('Andamento delle vendite di gasolio agricolo dal 2014 a luglio 2020')
-xlabel('Mese') 
-ylabel('Tonnellate')
+f12 = figure('Position',[100,100,1250,675])
+plot(T11.Rif_Mese,T11.Emiss_C02_NTotE)
+title('Andamento delle emissioni di C0_2 da gennaio 2010 a luglio 2021')
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
 
 %% AUTOREGRESSIVI: Caratteristiche grafiche della serie: autocorrelazioni e distribuzione
-figure
+f13 = figure('Position',[100,100,1250,675])
 % Serie storica
 subplot(2,2,1)      
-plot(T11.Rif_Mese,T11.Produz_Idroelet);
-title('Serie storica delle vendite di gasolio agricolo')
+plot(T11.Rif_Mese,T11.Emiss_C02_NTotE);
+title('Serie storica delle emissioni di C0_2')
 % Istogramma della distribuzione
 subplot(2,2,2)       
-histfit(T11.Produz_Idroelet,20,'Normal')
+histfit(T11.Emiss_C02_NTotE,20,'Normal')
 title('Istogramma della distribuzione')
 % Autocorrelazioni
 subplot(2,2,3)       
-autocorr(T11.Produz_Idroelet, 36);
+autocorr(T11.Emiss_C02_NTotE, 48);
 title('ACF delle innovazioni')
 % Autocorrelazioni parziali
 subplot(2,2,4)       
-parcorr(T11.Produz_Idroelet, 36);
+parcorr(T11.Emiss_C02_NTotE, 48);
 title('PACF delle innovazioni')
-% in questo caso pacf si nota che è stagionale ritardo 12 (che tenende ad
-% affievolirsi dopo 36 mesi)
+saveas(f13,[pwd '\immagini\13.ACF_PACF_Emissioni.png'])
+% in questo caso acf si nota che è stagionale ritardo 12.
+% PACF --> si nota una stagionalità ogni 12 mesi, ma varia la
+% significatività varia annualmente.
 
 % Test di Bera-Jarque di normalità - H0 = dati normali
-[h,p,jbstat,critval] = jbtest(T11.Produz_Idroelet)
-% Ad un livello del 1% i dati sono normali (pv > 0.01)
+[h,p,jbstat,critval] = jbtest(T11.Emiss_C02_NTotE)                      % normalità dei dati
 
 % Ljung-Box test per autocorrelazione
-[h,pValue,stat,cValue] = lbqtest(T11.Produz_Idroelet,'lags',[1,2,13,25,36])
+[h,pValue,stat,cValue] = lbqtest(T11.Emiss_C02_NTotE,'lags',[6,12,18,24,30,36,42,48])   %autocorrelazione forte ai seguenti ritardi
 
 %%Durbin-Watson test per autocorrelazione
 %questo test si chiede se c'è autocorrelazione a ritardo 1.
-[pValue,stat] = dwtest(T11.Produz_Idroelet,ones(size(T11.Produz_Idroelet,1)-1,1),'Method','exact')
+[pValue,stat] = dwtest(T11.Emiss_C02_NTotE,ones(size(T11.Emiss_C02_NTotE,1)-1,1),'Method','exact')     %è autocorrelato ritardo 1
 % pv = 0 --> Rigetto ipotesi nulla --> Valori autoregressivi
 
 % Augmented-Dickey-Fuller test per stazionarietà
 % H0 = la serie è non stazionaria
 % H1 = la serie è stazionaria
-[h,p,adfstat,critval] = adftest(T11.Produz_Idroelet,'model','TS','lags',0:24)
+[h,p,adfstat,critval] = adftest(T11.Emiss_C02_NTotE,'model','TS','lags',0:24)
+
 
 %%%%% Modelli ARIMA
 %%% Modello la serie storica con modelli ARIMA(p,0,q) e SARIMA((p,0,q),(P,0,Q))
@@ -450,71 +454,140 @@ title('PACF delle innovazioni')
 %                           theta_1*eps_t-1 + theta_q*eps_t-q
 % Modello AR(12): y_t = alpha1*y_t-1 + alpha2*y_t-2 + ... + alpha12*y_t-12 + eps_t
 
-%modello AR(12) --> metodo grezzo
-
 AR12 = arima('ARLags',1:12);
-EstAR12 = estimate(AR12,T11.Produz_Idroelet,'Display','off');  % mestimate uso la massima verosomiglianza per stimare parametri
-summarize(EstAR12); %mostra risultati modello
+EstAR12 = estimate(AR12,T11.Emiss_C02_NTotE,'Display','off') 
+summarize(EstAR12) %mostra risultati modello
 %Trovo i residui (detti anche innovazioni) dell'Arima.
-innov = infer(EstAR12, T11.Produz_Idroelet, 'Y0',T11.Produz_Idroelet(1:12)); % il terzo parametro dò la serie con valori pari al numero di AR scelto in questo caso 12
-fitted = T11.Produz_Idroelet + innov;  %fitted sarebbero "y cappello" calcolati in quel modo.
+innov = infer(EstAR12, T11.Emiss_C02_NTotE, 'Y0',T11.Emiss_C02_NTotE(1:12));
+fitted = T11.Emiss_C02_NTotE + innov;
 
 %%% Grafico della serie osservata e stimata/fittata
-%%% SOVRASTIMA TALVOLTA I PICCHI.
-figure
-plot(T11.Rif_Mese,T11.Produz_Idroelet)
+f14 = figure('Position',[100,100,1250,675])
+plot(T11.Rif_Mese,T11.Emiss_C02_NTotE)
 hold on
 plot(T11.Rif_Mese,fitted)
 legend('Osservata','Fittata AR(12)')
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
 title('Serie storica osservata e fittata con AR(12)')
+saveas(f14,[pwd '\immagini\14.Fitting_AR12.png'])
+%%% SOVRASTIMA quasi sempre i picchi sia in positivo che negativo.
+RMSE = sqrt(mean((T11.Emiss_C02_NTotE - fitted).^2))  % Root Mean Squared Error = 18.6558
 
 
-
-%%%%%
-
-
-rinn_T11 = T11.Produz_RinnoTOT;
-periodo = T11.Rif_Mese
-train_idroel = rinn_T11([1:111],:);
-test_idroel = rinn_T11([112:end],:);   %20
-Period = periodo([112:end],:)
-
-%%super-interessante
-
-%%%%% Modelli Seasonal ARIMA
-% Modello SARIMA((1,0,0),(12,0,0))
+%%%%% Modelli ARIMA
+% Modello ARIMA((1,0,3)
 % y_t = alpha1*y_t-1 + Alpha12*y_t-12 + eps_t
-SAR112 = arima('ARLags',1,'MALags',1,'SARLags',12);
-EstSAR112 = estimate(SAR112,train_idroel,'Display','off');
-summarize(EstSAR112);
-innovSAR112 = infer(EstSAR112, T11.Produz_RinnoTOT, 'Y0',T11.Produz_RinnoTOT(1:14));   %13 perchè 12 ritardi SARIMA + 1 AR(1)
-fittedSAR112 = T11.Produz_RinnoTOT + innov;
 
-mhat = forecast(EstSAR112,28,test_idroel)
-
-%%% Grafico della serie osservata e stimata/fittata
-figure
-plot(Period,test_idroel)
-hold on
-%plot(T11.Rif_Mese,fittedSAR112)
-plot(Period,mhat)
-legend('Osservata','SARIMA((1,0,0),(12,0,0))','AR(12)')
-title('Serie storica osservata e fittata con SARIMA((1,0,0),(12,0,0))')
-
-RMSE = sqrt(mean((test_idroel - mhat).^2));  % Root Mean Squared Error
-
-%%%%%%%%% USARE ARIMA CON MA ordine 1,2,3 per differenziare la serie
-
-MA11 = arima(2,2,2)
-MAS11 = estimate(MA11,T11.Consum_RinnoTOT,'Display','off');
+MA11 = arima(1,0,3)                                                             % AUTOREGRESSIVO DI GRADO 1, A MEDIA MOBILE DI 3
+MAS11 = estimate(MA11,T11.Emiss_C02_NTotE,'Display','off');
 summarize(MAS11);
-innovMA112 = infer(MAS11, T11.Consum_RinnoTOT, 'Y0',T11.Consum_RinnoTOT(1:4));   %13 perchè 12 ritardi SARIMA + 1 AR(1)
-fittedMA112 = T11.Produz_Idroelet + innov;
+innovMA112 = infer(MAS11, T11.Emiss_C02_NTotE, 'Y0',T11.Emiss_C02_NTotE(1:4));   %13 perchè 12 ritardi SARIMA + 1 AR(1)
+fittedMA112 = T11.Emiss_C02_NTotE + innovMA112;
 
-figure
-plot(T11.Rif_Mese,T11.Consum_RinnoTOT)
+f15 = figure('Position',[100,100,1250,675])
+plot(T11.Rif_Mese,T11.Emiss_C02_NTotE)
 hold on
 plot(T11.Rif_Mese,fittedMA112)
-legend('Osservata','MA (1,1,0)')
-title('Serie storica osservata e fittata con SARIMA((1,0,0),(12,0,0))')
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Osservata','AR (1,0,3)')
+title('Serie storica osservata e fittata con ARIMA(1,0,3)')
+saveas(f15,[pwd '\immagini\15.Fitting_ARIMA.png'])
 
+RMSE = sqrt(mean((T11.Emiss_C02_NTotE - fittedMA112).^2))  % Root Mean Squared Error = 28.64
+
+
+%%%% Metodo iterativo scelta parametri per minimizzare l'AIC e il BIC
+
+pMax = 3;
+qMax = 3;
+AIC = zeros(pMax+1,qMax+1);
+BIC = zeros(pMax+1,qMax+1);
+
+for p = 0:pMax
+    for q = 0:qMax
+        % White noise: ARMA(0,0)
+        if p == 0 & q == 0
+            Mdl = arima(0,0,0);
+        end
+        % Moving average: ARMA(0,q)
+        if p == 0 & q ~= 0
+            Mdl = arima('MALags',1:q,'SARLags',12);
+        end
+        % Autoregressive: ARMA(p,0)
+        if p ~= 0 & q == 0
+            Mdl = arima('ARLags',1:p,'SARLags',12);
+        end
+        % Autoregressive moving average: ARMA(p,q)
+        if p ~= 0 & q ~= 0
+            Mdl = arima('ARLags',1:p,'MALags',1:q,'SARLags',12);
+        end      
+        % Stima del modello con MLE
+        EstMdl = estimate(Mdl,T11.Emiss_C02_NTotE,'Display','off');
+        % Salvataggio AIC e BIC
+        results = summarize(EstMdl);
+        AIC(p+1,q+1) = results.AIC;         % p = rows
+        BIC(p+1,q+1) = results.BIC;         % q = columns
+    end
+end
+
+% Confrontiamo AIC e BIC dei valori modelli stimati
+minAIC = min(min(AIC))                          % minimo per riga e poi minimo per colonna della matrice AIC
+[bestP_AIC,bestQ_AIC] = find(AIC == minAIC)     % posizione del modello con minimo AIC
+bestP_AIC = bestP_AIC - 1; bestQ_AIC = bestQ_AIC - 1; 
+minBIC = min(min(BIC))
+[bestP_BIC,bestQ_BIC] = find(BIC == minBIC)
+bestP_BIC = bestP_BIC - 1; bestQ_BIC = bestQ_BIC - 1; 
+fprintf('%s%d%s%d%s','The model with minimum AIC is SARIMA((', bestP_AIC,',0,',bestQ_AIC,'),(12,0,0))');
+fprintf('%s%d%s%d%s','The model with minimum BIC is SARIMA((', bestP_BIC,',0,',bestQ_BIC,'),(12,0,0))');
+% Scegliamo il modello più parsimonioso: SARIMA((2,0,1),(12,0,0))
+% Parsimonioso inteso come minor numero di parametri (Rasoio di Occam)
+% In generale BIC penalizza di più la verosimiglianza quindi è più 
+% parsimonioso (modello più semplice con minor numero di parametri).
+SARIMA_opt = arima('ARLags',1,'SARLags',12);
+Est_SARIMA_opt = estimate(SARIMA_opt,T11.Emiss_C02_NTotE);
+E = infer(Est_SARIMA_opt, T11.Emiss_C02_NTotE, 'Y0',T11.Emiss_C02_NTotE(1:14));
+fittedSARIMA_opt = T11.Emiss_C02_NTotE + E;
+
+RMSE = sqrt(mean((T11.Emiss_C02_NTotE - fittedSARIMA_opt).^2))  % Root Mean Squared Error = 24.11
+
+%%% Grafico della serie osservata e stimata/fittata
+f16 = figure('Position',[100,100,1250,675])
+plot(T11.Rif_Mese,T11.Emiss_C02_NTotE)
+hold on
+plot(T11.Rif_Mese,fittedSARIMA_opt)
+plot(T11.Rif_Mese,fittedMA112)
+plot(T11.Rif_Mese,fitted)
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Osservata','SARIMA((1,0,1),(12,0,0))',...
+    'ARIMA(1,0,3)','AR(12)')
+title('Serie storica osservata e fittata con diversi modelli')
+saveas(f16,[pwd '\immagini\16.ConfrontoModelli.png'])
+
+%%% Analisi grafica delle innovazioni
+f17 = figure('Position',[100,100,1250,675])
+subplot(2,2,1)      
+plot(E);
+title('Serie storica delle innovazioni')
+subplot(2,2,2)       
+histfit(E,20,'Normal')
+title('Istogramma delle innovazioni')
+subplot(2,2,3)       
+autocorr(E);
+title('ACF delle innovazioni')
+subplot(2,2,4)       
+parcorr(E);
+title('PACF delle innovazioni')
+saveas(f17,[pwd '\immagini\17.ACF_PACF_Sarima.png'])
+
+% Test analitici sui residui
+[h,p,jbstat,critval] = jbtest(E)
+[h,pValue,stat,cValue] = lbqtest(E,'lags',[1,4,8,12])
+[h,p,adfstat,critval] = adftest(E)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%% Garch 
