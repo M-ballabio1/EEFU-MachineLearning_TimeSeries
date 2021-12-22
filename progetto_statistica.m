@@ -349,20 +349,21 @@ xvars = [{'Produz_Carbone'},{'Produz_GasNatur'},{'Produz_PetrGreg'},{'Produz_CFo
 
 % Divisione dataset in training e test 
 X = T11_sel(:,xvars);
-X_train = X([1:111],:);
+X_train = X([1:115],:);
 X_train_m = table2array(X_train);
-X_test = X([112:end],:);
+X_test = X([116:end],:);
 X_test_m = table2array(X_test);
 
 y = T11_sel(:,'Emiss_C02_NTotE');
-y_train = y([1:111],:);
+y_train = y([1:115],:);
 y_train_m = table2array(y_train);
-y_test = y([112:end],:);
+y_test = y([116:end],:);
 y_test_m = table2array(y_test);
 
-X2 = T11_sel([112:end],:);
+X2 = T11_sel([116:end],:);
 periodo = T11.Rif_Mese;
-Period = periodo([112:end],:);
+Period_test = periodo([116:end],:);
+Period_train = periodo([1:115],:);
 
 % 2. Applico algoritmo stepwise (dal modello vuoto a quello pieno)
 % Divisione Predittori (X) e Variabile risposta (Y)
@@ -379,24 +380,37 @@ in_lasso = not(Bhat(:,lasso_st.IndexMinMSE)==0);
 
 % 6. Valuto modello selezionato
 mhat_lasso = fitlm(X2(:,[in_lasso(:)',true]),'ResponseVar','Emiss_C02_NTotE')
-% 7 Osservo errore di previsione associato al modello selezionato
+% 7 Vedo qual è il lambda che minimizza il MSE o SE
+lassoPlot(Bhat,lasso_st,'PlotType','CV');
+legend('show') % Show legend
+% 8 Osservo errore di previsione associato al modello selezionato
 disp('RMSE con 20-folds cross-validation:')
 disp(sqrt(lasso_st.MSE(lasso_st.IndexMinMSE)))
 
-%Confronto
 f12 = figure('Position',[100,100,1250,675])
-plot(Period, y_test.Emiss_C02_NTotE)
+plot(Period_test, y_test.Emiss_C02_NTotE,'Color',[0.4660, 0.7540, 0.1880],'LineWidth', 1)
 hold on
-plot(Period, mhat_lasso.Fitted)
-hold off
+plot(Period_test, mhat_lasso.Fitted,'r','LineWidth', 1)
 title('Emssione C0_2 reali vs stimate (Lasso)') 
 xlabel('Tempo [Mesi]')
 ylabel('Quantità emessa [Mln di tonnellate]')
-legend('Emissioni di CO2 dataset','Emissioni di C02 stimate')
+legend('Emissioni di C02 test data','Emissioni di C02 fittati con Lasso')
 saveas(f12,[pwd '\immagini\12.Emissioni_realiVSstimate_Lasso.png'])
 
+%Confronto generale con sia training che test set
+f12a = figure('Position',[100,100,1250,675])
+plot(Period_train,y_train_m)
+hold on
+plot(Period_test, y_test.Emiss_C02_NTotE,'Color',[0.4660, 0.7540, 0.1880],'LineWidth', 1)
+plot(Period_test, mhat_lasso.Fitted,'r','LineWidth', 1)
+hold off
+title('Emssione C0_2 reali vs stimate (Lasso) [training e test]') 
+xlabel('Tempo [Mesi]')
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Emissioni di CO2 training data','Emissioni di C02 test data','Emissioni di C02 fittati con Lasso')
+saveas(f12a,[pwd '\immagini\12a.Emissioni_train_test_stimate_Lasso.png'])
 
-%R^2 = 0.945
+%R^2 = 0.957
 
 %%% Possibile analisi training e test applicata anche alla staepwise per
 %%% fare un possibile confronto da inserire nel report
@@ -408,7 +422,7 @@ title('Andamento delle emissioni di C0_2 da gennaio 2010 a luglio 2021')
 xlabel('Tempo [Mesi]') 
 ylabel('Quantità emessa [Mln di tonnellate]')
 
-%% AUTOREGRESSIVI: Caratteristiche grafiche della serie: autocorrelazioni e distribuzione
+% AUTOREGRESSIVI: Caratteristiche grafiche della serie: autocorrelazioni e distribuzione
 f13 = figure('Position',[100,100,1250,675])
 % Serie storica
 subplot(2,2,1)      
@@ -454,48 +468,59 @@ saveas(f13,[pwd '\immagini\13.ACF_PACF_Emissioni.png'])
 %                           theta_1*eps_t-1 + theta_q*eps_t-q
 % Modello AR(12): y_t = alpha1*y_t-1 + alpha2*y_t-2 + ... + alpha12*y_t-12 + eps_t
 
-AR12 = arima('ARLags',1:12);
-EstAR12 = estimate(AR12,T11.Emiss_C02_NTotE,'Display','off') 
-summarize(EstAR12) %mostra risultati modello
+% Utilizzo di training e test per previsione
+
+AR12 = arima('ARLags',1:12)
+EstAR12 = estimate(AR12,y_train_m,'Display','off') 
+summarize(EstAR12)                                                   %mostra risultati modello
 %Trovo i residui (detti anche innovazioni) dell'Arima.
-innov = infer(EstAR12, T11.Emiss_C02_NTotE, 'Y0',T11.Emiss_C02_NTotE(1:12));
-fitted = T11.Emiss_C02_NTotE + innov;
+innov_tr = infer(EstAR12, y_train_m, 'Y0',y_train_m(1:12));
+innov_te = infer(EstAR12, y_test_m, 'Y0',y_test_m(1:12));
+%fitted = y_train_m + innov_tr;
+new = forecast(EstAR12,24,y_test_m);
+fit_right = new+innov_te;
 
 %%% Grafico della serie osservata e stimata/fittata
 f14 = figure('Position',[100,100,1250,675])
-plot(T11.Rif_Mese,T11.Emiss_C02_NTotE)
+plot(Period_train,y_train_m)
 hold on
-plot(T11.Rif_Mese,fitted)
-legend('Osservata','Fittata AR(12)')
+plot(Period_test,y_test_m)
+plot(Period_test,fit_right)
+legend('Osservata training dataset','Osservata test dataset','Fittata AR(12)')
 xlabel('Tempo [Mesi]') 
 ylabel('Quantità emessa [Mln di tonnellate]')
 title('Serie storica osservata e fittata con AR(12)')
 saveas(f14,[pwd '\immagini\14.Fitting_AR12.png'])
 %%% SOVRASTIMA quasi sempre i picchi sia in positivo che negativo.
-RMSE = sqrt(mean((T11.Emiss_C02_NTotE - fitted).^2))  % Root Mean Squared Error = 18.6558
+RMSE = sqrt(mean((y_test_m - fit_right).^2))  % Root Mean Squared Error = 33.31
 
 
 %%%%% Modelli ARIMA
 % Modello ARIMA((1,0,3)
 % y_t = alpha1*y_t-1 + Alpha12*y_t-12 + eps_t
 
-MA11 = arima(1,0,3)                                                             % AUTOREGRESSIVO DI GRADO 1, A MEDIA MOBILE DI 3
-MAS11 = estimate(MA11,T11.Emiss_C02_NTotE,'Display','off');
+MA11 = arima(2,0,2);                                                             % AUTOREGRESSIVO DI GRADO 2, A MEDIA MOBILE DI 2
+MAS11 = estimate(MA11,y_train_m,'Display','off');
 summarize(MAS11);
-innovMA112 = infer(MAS11, T11.Emiss_C02_NTotE, 'Y0',T11.Emiss_C02_NTotE(1:4));   %13 perchè 12 ritardi SARIMA + 1 AR(1)
-fittedMA112 = T11.Emiss_C02_NTotE + innovMA112;
+innovMA112 = infer(MAS11, y_train_m, 'Y0',y_train_m(1:4));  
+%fittedMA112 = T11.Emiss_C02_NTotE + innovMA112;
+innov_te2 = infer(MAS11, y_test_m, 'Y0',y_test_m(1:4));
+%fitted = y_train_m + innov_tr;
+new_2 = forecast(MAS11,24,y_test_m);
+fit_right2 = new_2+innov_te2;
 
 f15 = figure('Position',[100,100,1250,675])
-plot(T11.Rif_Mese,T11.Emiss_C02_NTotE)
+plot(Period_train,y_train_m)
 hold on
-plot(T11.Rif_Mese,fittedMA112)
+plot(Period_test,y_test_m)
+plot(Period_test,fit_right2)
 xlabel('Tempo [Mesi]') 
 ylabel('Quantità emessa [Mln di tonnellate]')
-legend('Osservata','AR (1,0,3)')
-title('Serie storica osservata e fittata con ARIMA(1,0,3)')
+legend('Osservata train','Osservata test','Fittata con ARIMA')
+title('Serie storica osservata e fittata con ARIMA(2,0,2)')
 saveas(f15,[pwd '\immagini\15.Fitting_ARIMA.png'])
 
-RMSE = sqrt(mean((T11.Emiss_C02_NTotE - fittedMA112).^2))  % Root Mean Squared Error = 28.64
+RMSE = sqrt(mean((y_test_m - fit_right2).^2))  % Root Mean Squared Error = 24.13
 
 
 %%%% Metodo iterativo scelta parametri per minimizzare l'AIC e il BIC
@@ -541,7 +566,7 @@ minBIC = min(min(BIC))
 bestP_BIC = bestP_BIC - 1; bestQ_BIC = bestQ_BIC - 1; 
 fprintf('%s%d%s%d%s','The model with minimum AIC is SARIMA((', bestP_AIC,',0,',bestQ_AIC,'),(12,0,0))');
 fprintf('%s%d%s%d%s','The model with minimum BIC is SARIMA((', bestP_BIC,',0,',bestQ_BIC,'),(12,0,0))');
-% Scegliamo il modello più parsimonioso: SARIMA((2,0,1),(12,0,0))
+% Scegliamo il modello più parsimonioso: SARIMA((1,0,1),(12,0,0))
 % Parsimonioso inteso come minor numero di parametri (Rasoio di Occam)
 % In generale BIC penalizza di più la verosimiglianza quindi è più 
 % parsimonioso (modello più semplice con minor numero di parametri).
@@ -550,21 +575,54 @@ Est_SARIMA_opt = estimate(SARIMA_opt,T11.Emiss_C02_NTotE);
 E = infer(Est_SARIMA_opt, T11.Emiss_C02_NTotE, 'Y0',T11.Emiss_C02_NTotE(1:14));
 fittedSARIMA_opt = T11.Emiss_C02_NTotE + E;
 
-RMSE = sqrt(mean((T11.Emiss_C02_NTotE - fittedSARIMA_opt).^2))  % Root Mean Squared Error = 24.11
+fitted_test_SAR = fittedSARIMA_opt([116:end],:);
+
+% Analisi grafica delle autocorrelazioni dei FITTATI (RIGURDARE)
+%{
+f120 = figure('Position',[100,100,1250,675])
+subplot(2,2,1)      
+plot(E);
+title('Serie storica delle innovazioni')
+subplot(2,2,2)       
+histfit(fittedSARIMA_opt,48,'Normal')
+title('Istogramma delle innovazioni')
+subplot(2,2,3)       
+autocorr(fittedSARIMA_opt,48);
+title('ACF delle innovazioni')
+subplot(2,2,4)       
+parcorr(fittedSARIMA_opt,48);
+title('PACF delle innovazioni')
+%}
+
+RMSE = sqrt(mean((y_test_m - fitted_test_SAR).^2))  % Root Mean Squared Error = 21.08
 
 %%% Grafico della serie osservata e stimata/fittata
 f16 = figure('Position',[100,100,1250,675])
 plot(T11.Rif_Mese,T11.Emiss_C02_NTotE)
 hold on
-plot(T11.Rif_Mese,fittedSARIMA_opt)
-plot(T11.Rif_Mese,fittedMA112)
-plot(T11.Rif_Mese,fitted)
+plot(Period_test,fitted_test_SAR)
+plot(Period_test,fit_right2)
+plot(Period_test,fit_right)
 xlabel('Tempo [Mesi]') 
 ylabel('Quantità emessa [Mln di tonnellate]')
 legend('Osservata','SARIMA((1,0,1),(12,0,0))',...
     'ARIMA(1,0,3)','AR(12)')
 title('Serie storica osservata e fittata con diversi modelli')
 saveas(f16,[pwd '\immagini\16.ConfrontoModelli.png'])
+
+%solo su test
+f16a = figure('Position',[100,100,1250,675])
+plot(Period_test,y_test_m)
+hold on
+plot(Period_test,fitted_test_SAR)
+plot(Period_test,fit_right2)
+plot(Period_test,fit_right)
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Osservata','SARIMA((1,0,1),(12,0,0))',...
+    'ARIMA(1,0,3)','AR(12)')
+title('Serie storica osservata e fittata con diversi modelli')
+saveas(f16a,[pwd '\immagini\16a.ConfrontoModelli_test.png'])
 
 %%% Analisi grafica delle innovazioni
 f17 = figure('Position',[100,100,1250,675])
@@ -587,7 +645,166 @@ saveas(f17,[pwd '\immagini\17.ACF_PACF_Sarima.png'])
 [h,pValue,stat,cValue] = lbqtest(E,'lags',[1,4,8,12])
 [h,p,adfstat,critval] = adftest(E)
 
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-%%% Garch 
+
+
+% Residui E
+% Residui al quadrato
+E2 = E.^2;
+
+%% Autocorrelazione totale e parziale dei residui e dei residui al quadrato
+figure(1)
+subplot(2,2,1)
+autocorr(E,48)
+title('ACF residui filtro')
+subplot(2,2,2)
+parcorr(E,48)
+title('PACF residui filtro')
+subplot(2,2,3)
+autocorr(E2,48)
+title('ACF residui filtro^2')
+subplot(2,2,4)
+parcorr(E2,48)
+title('PACF residui filtro^2')
+% Residui risultano autocorrelati --> Whitening
+% Residui al quadrato risultano autocorrelati --> GARCH
+
+%% Engle's ARCH test per eteroschedasticità condizionata dei residui filtro
+% https://it.mathworks.com/help/econ/engles-arch-test.html
+
+% SIAMO INTERESSATI A MODELLARE LA VARIANZA DEI RESIDUI O IN QUESTO CASO DI UNA SERIE STORICA 
+
+%Test di engle per l'eteroschedaticità
+%[h,pValue,stat,cValue] = archtest(e2_flt)
+% Rigetto H0 --> se c'è presenza di eteroschedasticità nei residui del filtro
+
+%% Pre-whitening dei residui (elimino autocorrelazione)
+arma = arima(2,0,1);
+aux_arma = estimate(arma,E2);
+% Residui del filtro 'depurati' dalla autocorrelazione
+res = infer(aux_arma, E2,'Y0',E2(1:2));
+% Residui 'depurati' al quadrato
+res2 = res.^2;
+
+%% Autocorrelazione totale e parziale dei residui depurati e dei residui 
+%% depurati al quadrato
+figure(1)
+subplot(2,2,1)
+autocorr(res)
+title('ACF residui')
+subplot(2,2,2)
+parcorr(res)
+title('PACF residui')
+subplot(2,2,3)
+autocorr(res2)
+title('ACF residui^2')
+subplot(2,2,4)
+parcorr(res2)
+title('PACF residui^2')
+
+% Dopo il pre-whitening, risultano autocorrelati solamente i residui al
+% quadrato, quindi possiamo applicare Garch
+
+%% %%%%% Modellazione dell'eteroschedasticità
+%% ARCH(1) = GARCH(0,1)    %solo componente autoregressiva
+% Stima MLE del modello
+m0 = garch(0,1)
+[mhat,covM,logL] = estimate(m0,res);
+condVhat = infer(mhat,res);             %estraggo residui condizionati ossia e^(2).
+condVol = sqrt(condVhat);               %conditional volatility
+% AIC e BIC
+n = length(T11.Emiss_C02_NTotE);
+[a,b] = aicbic(logL,mhat.P+mhat.Q,n)
+% Plot dei valori fittati
+figure
+plot(T11.Rif_Mese,res)
+hold on;
+plot(T11.Rif_Mese,condVol)
+title('Residui e inferred conditional volatility con GARCH(0,1)')
+xlabel('Time')
+legend('Prices','Estim. cond. volatility','Location','NorthEast')
+hold off;
+
+%%% Standardized residuals
+std_res = res ./ condVol;
+std_res2 = std_res .^ 2;
+
+%%% Diagnostiche sui residui standardizzati
+figure
+subplot(2,2,1)
+plot(std_res)
+title('Standardized Residuals')
+subplot(2,2,2)
+histogram(std_res,10)
+subplot(2,2,3)
+autocorr(std_res)
+subplot(2,2,4)
+parcorr(std_res)
+
+figure
+subplot(2,2,1)
+plot(std_res2)
+title('Standardized Residuals Squared')
+subplot(2,2,2)
+histogram(std_res2,10)
+subplot(2,2,3)
+autocorr(std_res2)
+subplot(2,2,4)
+parcorr(std_res2)
+% I residui al quadrato presentano ancora autocorrelazione ma, non
+% importante come nel caso precedente.
+
+
+%% GARCH(1,1)      %sia autoregressivo che media mobile (1,1)
+% Stima MLE del modello
+m0 = garch(1,1)
+[mhat,covM,logL] = estimate(m0,res);
+condVhat = infer(mhat,res);
+condVol = sqrt(condVhat);
+% AIC e BIC
+[a,b] = aicbic(logL,mhat.P+mhat.Q,n)
+% Plot dei valori fittati
+figure
+plot(T11.Rif_Mese,res)
+hold on;
+plot(T11.Rif_Mese,condVol)
+title('Residui e inferred conditional volatility con GARCH(0,1)')
+xlabel('Time')
+legend('Prices','Estim. cond. volatility','Location','NorthEast')
+hold off;
+% Presenza di volatility clusters (picchi ascendenti e discendenti) ben identificati
+% e regolari lungo la serie
+
+%%% Standardized residuals
+std_res = res ./ condVol;
+std_res2 = std_res .^ 2;
+
+%%% Diagnostiche sui residui standardizzati
+figure
+subplot(2,2,1)
+plot(std_res)
+title('Standardized Residuals')
+subplot(2,2,2)
+histogram(std_res,10)
+subplot(2,2,3)
+autocorr(std_res)
+subplot(2,2,4)
+parcorr(std_res)
+
+figure
+subplot(2,2,1)
+plot(std_res2)
+title('Standardized Residuals')
+subplot(2,2,2)
+histogram(std_res2,10)
+subplot(2,2,3)
+autocorr(std_res2)
+subplot(2,2,4)
+parcorr(std_res2)
+% I residui standardizzati al quadrato non presentano più autocorrelazione
+
+
