@@ -244,7 +244,7 @@ kurtosis(res1)                                                           %forte 
 %I test ci permettono di affermare che la distribuzione è normale (2/4) 
 
 
-%%% REGRESSIONE LINEARE MULTIPLA:
+%%% REGRESSIONE LINEARE MULTIPLA (prod e cons. singoli):
 % Modello log-lineare: la dipendente è logaritmica, i regressori sono lineari
 mhat2 = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars',{'Produz_Eolica','Produz_Carbone','Consum_CFosTras','Produz_Biomasse','Consum_Carb_TOT'})
 %%% Coefficienti stimati
@@ -308,9 +308,74 @@ kurtosis(res2)                                                         %abbastan
 %I test ci permettono di affermare che la distribuzione è normale (4/4) 
 
 
-%%% Model selection: STEPWISE regression  (in questo caso da modello vuoto a pieno)
+%%% REGRESSIONE LINEARE MULTIPLA (prod e cons. aggregati):
+% Modello log-lineare: la dipendente è logaritmica, i regressori sono lineari
+mhat2 = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars',{'Produz_RinnoTOT','Consum_NRinnTOT','Consum_RinnoTOT'})
+%%% Coefficienti stimati
+mhat2.Coefficients
+% Intercetta significativa (pv < 0.01)
+% Altre variabili significative (pv < 0.01) --> Consum. NON rinnovab. tot la più
+% significativa
+% R-squared: 0.961, migliore significatività del modello.
+
+%confronto reali vs fitted (+ variabili)
+f9a = figure('Position',[100,100,1250,675])
+plot(T11.Rif_Mese, T11.Emiss_C02_NTotE)
+hold on
+plot(T11.Rif_Mese, mhat2.Fitted)
+hold off
+title('Emssione C0_2 reali vs stimate (fitting lineare più variabili)') 
+xlabel('Tempo [Mesi]')
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Emissioni di CO2 dataset','Emissioni di C02 stimate')
+saveas(f9a,[pwd '\immagini\09a.Emissioni_realiVSstimate_Regr_Multipla_aggrega.png'])
+
+
+anova(mhat2,'summary')
+%%% Adattamento del modello
+mhat2.Rsquared;
+% Il modello è in grado di spiegare l'30% della variabilità complessiva di Y
+%%% Valori fittati dal modello: yhat_t
+fit2 = mhat2.Fitted;             
+%%% Residui di regressione: y_t - yhat_t
+res2 = mhat2.Residuals.Raw;
+
+%%%ANALISI dei residui 
+% Diagnostiche sui residui: normalità
+f10a = figure()
+set(f10a,'position',[100,100,1250,675]);
+subplot(1,2,1)
+histfit(res2)
+title('Distribuzione dei residui di regressione')
+xlabel('Quantità emessa [Mln di tonnellate]') 
+ylabel('Conteggio')
+
+% Diagnostiche sui residui: incorrelazione tra fittati e residui
+subplot(1,2,2)
+scatter(fit2,res2)        
+h1 = lsline
+h1.Color = 'black';
+h1.LineWidth = 2;
+xlabel('Valori fittati'); 
+ylabel('Residui di regressione');
+%text(30,0.5,sprintf('rho = %0.3f',round(corr(res2,fit2),3)))
+saveas(f10a,[pwd '\immagini\10a.Residui_Regr_Mul_EmissioneC02.png'])
+
+% Indici normalità residui
+skewness(res2)    
+kurtosis(res2)                                                         %abbastanza vicini alla normalità
+% Test normalità residui
+[h,p,jbstat,critval] = jbtest(res2, 0.05);                              % pv = 0.267 --> normalità
+[h,p,jbstat,critval] = jbtest(res2, 0.01);                              % pv = 0.267 --> normalità
+[h,p,dstat,critval] = lillietest(res2,'Alpha',0.05);                    % pv = 0.224 --> normalità
+[h3,p3,ci3,stats3] = ttest(res2);                                       % perfettamente normale
+%I test ci permettono di affermare che la distribuzione è normale (4/4) 
+
+
+%%% Model selection: STEPWISE regression  (in questo caso da modello vuoto
+%%% a pieno) [SOLO su singoli produzione e consumo].
 % 1. Seleziono le colonne corrispondenti PRODUZIONE e CONSUMI
-xvars = [{'Produz_Carbone'},{'Produz_GasNatur'},{'Produz_PetrGreg'},{'Produz_CFosTOT'},{'Produz_Idroelet'},{'Produz_Eolica'},{'Produz_Biomasse'},{'Produz_RinnoTOT'},{'Consum_RinnoTOT'},{'Consum_CFosTras'},{'Consum_petrolio_Trasp'},{'Consum_Carb_Elettr'},{'Consum_Carb_TOT'}];
+xvars = [{'Produz_Carbone'},{'Produz_GasNatur'},{'Produz_PetrGreg'},{'Produz_CFosTOT'},{'Produz_Idroelet'},{'Produz_Eolica'},{'Produz_Biomasse'},{'Consum_CFosTras'},{'Consum_petrolio_Trasp'},{'Consum_Carb_Elettr'},{'Consum_Carb_TOT'}];
 T11_sel = T11(:,[xvars,{'Emiss_C02_NTotE'}]);
 % 2. Applico algoritmo stepwise (dal modello vuoto a quello pieno)
 % Divisione Predittori (X) e Variabile risposta (Y)
@@ -333,9 +398,9 @@ title('Emssione C0_2 reali vs stimate (stepwise)')
 xlabel('Tempo [Mesi]')
 ylabel('Quantità emessa [Mln di tonnellate]')
 legend('Emissioni di CO2 dataset','Emissioni di C02 stimate')
-saveas(f11,[pwd '\immagini\11.Emissioni_realiVSstimate_Stepwise.png'])
+saveas(f11,[pwd '\immagini\11.Emissioni_realiVSstimate_Stepwise_singoli.png'])
 
-%COMMENTO MODELLO CON STEPWISE (R^2 = 0.866)
+%COMMENTO MODELLO CON STEPWISE (R^2 = 0.785)
 
 
 %%% Model selection: LASSO algorithm
@@ -345,32 +410,13 @@ saveas(f11,[pwd '\immagini\11.Emissioni_realiVSstimate_Stepwise.png'])
 % modello lineare.
 
 % 1. Elenco tutte le variabili di regressione di interesse
-xvars = [{'Produz_Carbone'},{'Produz_GasNatur'},{'Produz_PetrGreg'},{'Produz_CFosTOT'},{'Produz_Idroelet'},{'Produz_Eolica'},{'Produz_Biomasse'},{'Produz_RinnoTOT'},{'Consum_RinnoTOT'},{'Consum_CFosTras'},{'Consum_petrolio_Trasp'},{'Consum_Carb_Elettr'},{'Consum_Carb_TOT'}];
-
-% Divisione dataset in training e test 
-X = T11_sel(:,xvars);
-X_train = X([1:115],:);
-X_train_m = table2array(X_train);
-X_test = X([116:end],:);
-X_test_m = table2array(X_test);
-
-y = T11_sel(:,'Emiss_C02_NTotE');
-y_train = y([1:115],:);
-y_train_m = table2array(y_train);
-y_test = y([116:end],:);
-y_test_m = table2array(y_test);
-
-X2 = T11_sel([116:end],:);
-periodo = T11.Rif_Mese;
-Period_test = periodo([116:end],:);
-Period_train = periodo([1:115],:);
-
-% 2. Applico algoritmo stepwise (dal modello vuoto a quello pieno)
-% Divisione Predittori (X) e Variabile risposta (Y)
+xvars = [{'Produz_Carbone'},{'Produz_GasNatur'},{'Produz_PetrGreg'},{'Produz_CFosTOT'},{'Produz_Idroelet'},{'Produz_Eolica'},{'Produz_Biomasse'},{'Consum_CFosTras'},{'Consum_petrolio_Trasp'},{'Consum_Carb_Elettr'},{'Consum_Carb_TOT'}];
+X = T11{:,xvars};
+y = T11.Emiss_C02_NTotE;
 
 %BHAT testa 100 lambda differenti e rispetto al numero di previsori che
 %sono andato a dargli. Risultato output bhat matrice 14*100
-[Bhat,lasso_st]=lasso(X_train_m,y_train_m,'CV',20,'MCReps',5,...
+[Bhat,lasso_st]=lasso(X,y,'CV',20,'MCReps',5,...   %cv 20
                 'Options',statset('UseParallel',true),...
                 'PredictorNames',xvars);
 % 5. Identifico le variabili selezionate con LASSO
@@ -379,7 +425,7 @@ lasso_st.IndexMinMSE                                %--> migliore modello con bh
 in_lasso = not(Bhat(:,lasso_st.IndexMinMSE)==0);
 
 % 6. Valuto modello selezionato
-mhat_lasso = fitlm(X2(:,[in_lasso(:)',true]),'ResponseVar','Emiss_C02_NTotE')
+mhat_lasso = fitlm(T11_sel(:,[in_lasso(:)',true]),'ResponseVar','Emiss_C02_NTotE')
 % 7 Vedo qual è il lambda che minimizza il MSE o SE
 lassoPlot(Bhat,lasso_st,'PlotType','CV');
 legend('show') % Show legend
@@ -388,29 +434,16 @@ disp('RMSE con 20-folds cross-validation:')
 disp(sqrt(lasso_st.MSE(lasso_st.IndexMinMSE)))
 
 f12 = figure('Position',[100,100,1250,675])
-plot(Period_test, y_test.Emiss_C02_NTotE,'Color',[0.4660, 0.7540, 0.1880],'LineWidth', 1)
+plot(T11.Rif_Mese, T11.Emiss_C02_NTotE,'Color',[0.4660, 0.7540, 0.1880],'LineWidth', 1)
 hold on
-plot(Period_test, mhat_lasso.Fitted,'r','LineWidth', 1)
+plot(T11.Rif_Mese, mhat_lasso.Fitted,'r','LineWidth', 1)
 title('Emssione C0_2 reali vs stimate (Lasso)') 
 xlabel('Tempo [Mesi]')
 ylabel('Quantità emessa [Mln di tonnellate]')
 legend('Emissioni di C02 test data','Emissioni di C02 fittati con Lasso')
 saveas(f12,[pwd '\immagini\12.Emissioni_realiVSstimate_Lasso.png'])
 
-%Confronto generale con sia training che test set
-f12a = figure('Position',[100,100,1250,675])
-plot(Period_train,y_train_m)
-hold on
-plot(Period_test, y_test.Emiss_C02_NTotE,'Color',[0.4660, 0.7540, 0.1880],'LineWidth', 1)
-plot(Period_test, mhat_lasso.Fitted,'r','LineWidth', 1)
-hold off
-title('Emssione C0_2 reali vs stimate (Lasso) [training e test]') 
-xlabel('Tempo [Mesi]')
-ylabel('Quantità emessa [Mln di tonnellate]')
-legend('Emissioni di CO2 training data','Emissioni di C02 test data','Emissioni di C02 fittati con Lasso')
-saveas(f12a,[pwd '\immagini\12a.Emissioni_train_test_stimate_Lasso.png'])
-
-%R^2 = 0.957
+%R^2 = 0.794
 
 %%% Possibile analisi training e test applicata anche alla staepwise per
 %%% fare un possibile confronto da inserire nel report
@@ -468,8 +501,26 @@ saveas(f13,[pwd '\immagini\13.ACF_PACF_Emissioni.png'])
 %                           theta_1*eps_t-1 + theta_q*eps_t-q
 % Modello AR(12): y_t = alpha1*y_t-1 + alpha2*y_t-2 + ... + alpha12*y_t-12 + eps_t
 
-% Utilizzo di training e test per previsione
 
+% Divisione dataset in training e test 
+X = T11_sel(:,xvars);
+X_train = X([1:115],:);
+X_train_m = table2array(X_train);
+X_test = X([116:end],:);
+X_test_m = table2array(X_test);
+
+y = T11_sel(:,'Emiss_C02_NTotE');
+y_train = y([1:115],:);
+y_train_m = table2array(y_train);
+y_test = y([116:end],:);
+y_test_m = table2array(y_test);
+
+X2 = T11_sel([116:end],:);
+periodo = T11.Rif_Mese;
+Period_test = periodo([116:end],:);
+Period_train = periodo([1:115],:);
+
+% Utilizzo di training e test per previsione
 AR12 = arima('ARLags',1:12)
 EstAR12 = estimate(AR12,y_train_m,'Display','off') 
 summarize(EstAR12)                                                   %mostra risultati modello
@@ -496,7 +547,7 @@ RMSE = sqrt(mean((y_test_m - fit_right).^2))  % Root Mean Squared Error = 33.31
 
 
 %%%%% Modelli ARIMA
-% Modello ARIMA((1,0,3)
+% Modello ARIMA((2,0,2)
 % y_t = alpha1*y_t-1 + Alpha12*y_t-12 + eps_t
 
 MA11 = arima(2,0,2);                                                             % AUTOREGRESSIVO DI GRADO 2, A MEDIA MOBILE DI 2
@@ -566,7 +617,7 @@ minBIC = min(min(BIC))
 bestP_BIC = bestP_BIC - 1; bestQ_BIC = bestQ_BIC - 1; 
 fprintf('%s%d%s%d%s','The model with minimum AIC is SARIMA((', bestP_AIC,',0,',bestQ_AIC,'),(12,0,0))');
 fprintf('%s%d%s%d%s','The model with minimum BIC is SARIMA((', bestP_BIC,',0,',bestQ_BIC,'),(12,0,0))');
-% Scegliamo il modello più parsimonioso: SARIMA((1,0,1),(12,0,0))
+% Scegliamo il modello più parsimonioso: SARIMA((1,0,),(12,0,0))
 % Parsimonioso inteso come minor numero di parametri (Rasoio di Occam)
 % In generale BIC penalizza di più la verosimiglianza quindi è più 
 % parsimonioso (modello più semplice con minor numero di parametri).
@@ -578,22 +629,6 @@ fittedSARIMA_opt = T11.Emiss_C02_NTotE + E;
 fitted_test_SAR = fittedSARIMA_opt([116:end],:);
 
 % Analisi grafica delle autocorrelazioni dei FITTATI (RIGURDARE)
-%{
-f120 = figure('Position',[100,100,1250,675])
-subplot(2,2,1)      
-plot(E);
-title('Serie storica delle innovazioni')
-subplot(2,2,2)       
-histfit(fittedSARIMA_opt,48,'Normal')
-title('Istogramma delle innovazioni')
-subplot(2,2,3)       
-autocorr(fittedSARIMA_opt,48);
-title('ACF delle innovazioni')
-subplot(2,2,4)       
-parcorr(fittedSARIMA_opt,48);
-title('PACF delle innovazioni')
-%}
-
 RMSE = sqrt(mean((y_test_m - fitted_test_SAR).^2))  % Root Mean Squared Error = 21.08
 
 %%% Grafico della serie osservata e stimata/fittata
@@ -612,7 +647,7 @@ saveas(f16,[pwd '\immagini\16.ConfrontoModelli.png'])
 
 %solo su test
 f16a = figure('Position',[100,100,1250,675])
-plot(Period_test,y_test_m)
+plot(Period_test,y_test_m,'LineWidth', 2)
 hold on
 plot(Period_test,fitted_test_SAR)
 plot(Period_test,fit_right2)
@@ -645,18 +680,13 @@ saveas(f17,[pwd '\immagini\17.ACF_PACF_Sarima.png'])
 [h,pValue,stat,cValue] = lbqtest(E,'lags',[1,4,8,12])
 [h,p,adfstat,critval] = adftest(E)
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
-
+%% Autocorrelazione totale e parziale dei residui e dei residui al quadrato
 % Residui E
 % Residui al quadrato
 E2 = E.^2;
 
-%% Autocorrelazione totale e parziale dei residui e dei residui al quadrato
 figure(1)
 subplot(2,2,1)
 autocorr(E,48)
@@ -798,7 +828,7 @@ parcorr(std_res)
 figure
 subplot(2,2,1)
 plot(std_res2)
-title('Standardized Residuals')
+title('Standardized Residuals squared')
 subplot(2,2,2)
 histogram(std_res2,10)
 subplot(2,2,3)
@@ -807,4 +837,59 @@ subplot(2,2,4)
 parcorr(std_res2)
 % I residui standardizzati al quadrato non presentano più autocorrelazione
 
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+%% %%%%% Variabili di interesse
+yy = T11.Emiss_C02_NTotE;       %variabile di risposta
+xx = T11.HDD;   %variabile predittiva
+xx2 = xx.^2; 
+XX = [xx,xx2];
+nn = length(yy);
+
+%% %%%%% Relazione tra X e Y
+
+%lineare non funziona molto bene
+plot(xx,yy,'p')
+title('HDD vs Emissioni di CO_2')
+xlabel('HDD [Grado giorno]')
+ylabel('Quantità emessa [Mln di tonnellate]')
+
+%potrebbe essere qualcosa di polinomiale
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%% Analisi della temperatura con approccio regressione ordinaria %%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Modello 1: Regressione con coefficiente angolare e intercetta statici
+
+% modello di regressione a coefficienti statici
+% y(t) = alpha + beta*x(t) + e(t)
+
+lm = fitlm(xx,yy);  %qui ho usato un solo regressore R^2 = 0.571
+lm
+lm2 = fitlm(XX,yy);  %qui due regressori R^2
+lm2
+
+figure(1)
+plot(T11.Rif_Mese, yy)
+hold on
+plot(T11.Rif_Mese, lm.Fitted)
+plot(T11.Rif_Mese, lm2.Fitted)
+legend('Temp. osservata','Temp. fittata lineare','Temp. fittata quadratica')
+title('Temperatura stimata con regressione lineare')
+
+figure(2)
+plot(xx,yy,'p')
+title('CO vs Temperatura')
+xlabel('\mug/m^3')
+ylabel('Gradi (°)')
+hold on
+plot(xx,lm.Fitted,'r','LineWidth',2)
+plot(xx,lm2.Fitted,'g','LineWidth',2)
 
