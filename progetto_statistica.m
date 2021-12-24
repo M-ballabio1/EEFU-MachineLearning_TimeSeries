@@ -843,8 +843,6 @@ parcorr(std_res2)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-
 %% %%%%% Variabili di interesse
 yy = T11.Emiss_C02_NTotE;       %variabile di risposta
 xx = T11.HDD;   %variabile predittiva
@@ -876,29 +874,37 @@ lm
 lm2 = fitlm(XX,yy);  %qui due regressori R^2
 lm2
 
+%% AGGIUNTE LISA E VANE 
 figure(1)
 plot(T11.Rif_Mese, yy)
 hold on
 plot(T11.Rif_Mese, lm.Fitted)
 plot(T11.Rif_Mese, lm2.Fitted)
-legend('Temp. osservata','Temp. fittata lineare','Temp. fittata quadratica')
-title('Temperatura stimata con regressione lineare')
+legend('Emissioni osservate','Emissioni fittate lineari','Emissioni fittate quadratiche')
+title('Emissioni stimate con regressione lineare')
 
 figure(2)
 plot(xx,yy,'p')
-title('CO vs Temperatura')
-xlabel('\mug/m^3')
-ylabel('Gradi (°)')
+title('HDD vs Emissioni di CO_2')
+xlabel('HDD [Grado giorno]')
+ylabel('Quantità emessa [Mln di tonnellate]')
 hold on
 plot(xx,lm.Fitted,'r','LineWidth',2)
 plot(xx,lm2.Fitted,'g','LineWidth',2)
 
-%% AGGIUNTE LISA E VANE 
+tt = corr(T11{:,{'Emiss_C02_NTotE','HDD'}}) %corr=0.4486
+rowNames = {'Emissioni CO_2 TOT','HDD'};
+colNames = {'Emissioni CO_2 TOT','HDD'};
+sTable = array2table(tt,'RowNames',rowNames,'VariableNames',colNames) 
+
+tt1=corr(T11.Emiss_C02_NTotE,xx2) %corr=5951 --> correlazione più forte con HDD^2
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% %%%%%%%% Analisi della temperatura con approccio state-space %%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% Modello 2: Regressione con coefficiente angolare tempo-variante e intercetta statica
+
+% Modello 2: Regressione con coefficiente angolare tempo-variante e intercetta statica
 
 % modello state space a matrici tempo-varianti
 % y(t) = alpha + beta(t)*x(t) + e(t)         --> c'è una costante statica e coefficiente beta che dipende dal tempo 
@@ -914,7 +920,7 @@ params0 = [0.10,log(var(lm.Residuals.Raw))];
 %%% Stima MLE dei parametri
 disp('Stima')
 mhat2 = estimate(m2,yy,params0);
-%% all'ultimo istante t la costante è x(1) e il coefficiente angolare è x(2)
+%% all'ultimo istante t la costante è x(1) 416.46 e il coefficiente angolare è x(2)  -0.005
 
 %%% Stima degli stimati
 % Filtraggio (filtering) degli stati
@@ -953,23 +959,25 @@ e2_smo = yy - y2_smo;
 mean(e2_smo)
 var(e2_smo)
 
-%%% Previsione un passo in avanti degli stati e di y
-% Ad ogni tempo t, il miglior previsore lineare è il valore precedente
-alpha2.forecast = [nan; alpha2.flt(1:end-1)];
-beta2.forecast = [nan; beta2.flt(1:end-1)];
-y2_frc = alpha2.forecast + beta2.forecast.*x; %combino le due e creo la serie forecasting une step ahed di y 
-e2_frc = yy - y2_frc; %errore di previsione
-nanmean(e2_frc)
-nanvar(e2_frc)
-
 %%% Plot della serie originale, filtrata e smussata
 figure(4)
 plot(T11.Rif_Mese, yy)
 hold on
 plot(T11.Rif_Mese, y2_flt)
 plot(T11.Rif_Mese, y2_smo) 
-legend('Emissioni osservate','Emissioni filtrate','emissioni smoothed')
+legend('Emissioni osservate','Emissioni filtrate','Emissioni smoothed')
 title('Emissioni stimate con modello State Space con slope tempo-variante con intercetta costante')
+% apparentemente sembrano meglio quelle filtrate rispetto a quelle
+% smussate, anche se non prendono il picco del lockdown
+
+%%% Previsione un passo in avanti degli stati e di y
+% Ad ogni tempo t, il miglior previsore lineare è il valore precedente
+alpha2.forecast = [nan; alpha2.flt(1:end-1)];
+beta2.forecast = [nan; beta2.flt(1:end-1)];
+y2_frc = alpha2.forecast + beta2.forecast.*xx; %combino le due e creo la serie forecasting une step ahed di y 
+e2_frc = yy - y2_frc; %errore di previsione
+nanmean(e2_frc)
+nanvar(e2_frc)
 
 %%% Plot della serie originale e previsione un-passo-in-avanti
 figure(5)
@@ -985,9 +993,11 @@ R2_stat = lm.Rsquared.Adjusted
 R2_flt2 = 1 - mean(e2_flt.^2) / var(yy)
 R2_smo2 = 1 - mean(e2_smo.^2) / var(yy)
 R2_frc2 = 1 - nanmean(e2_frc.^2) / var(yy)
+
 % Forecasting performance
 RMSE_lm = sqrt(lm.MSE)
 RMSE_frc_m2 = sqrt(mse(e2_frc))
+
 % Plot
 figure(6)
 plot(T11.Rif_Mese, yy)
@@ -997,6 +1007,55 @@ plot(T11.Rif_Mese, y2_flt)
 plot(T11.Rif_Mese, y2_smo)
 legend('Emissioni osservate','Emissioni modello lineare','Emissioni filtrata','Emissioni smoothed')
 title('Emissioni stimate con modello statico e modello dinamico')
+
+%per la parte della regressione non riusciamo a fare altro :'(
+% la roba del passo pensavamo che fosse una previsione, ma in realtà parte
+% solo ritardata di 1
+
+%se il modello va bene, facciamo analisi dei residui, sceglieremo poi in
+%che modo
+
+%% Correlazione su dati annuali
+tt3=corr(T1.AnomalieSulRiscaldamento, T1.TotalEnergyCO2EmissionsUSA) %corr=0.74
+
+%Regressione lineare semplice: y_t = beta0 + beta1*x_t + epsilon_t
+mhat = fitlm(T1,'ResponseVar','TotalEnergyCO2EmissionsUSA','PredictorVars','AnomalieSulRiscaldamento')   
+%%% Coefficienti stimati
+mhat.Coefficients
+% Intercetta significativa ad ogni livello di significatività (pv < 0.01).
+% Anomalie sul riscaldamento significative ad ogni livello di
+% significatività (pv < 0.01).
+% R-squared: 0.548, modello abbastanza significativo utilizzando però solo
+% una variabile.
+
+%%% Significatività complessiva del modello
+anova(mhat,'summary')
+
+%PLOT PER VERIFICARE CONFRONTO DATI VERI E STIMATI
+f70 = figure('Position',[100,100,1250,675])
+plot(T2.Years,T2.TotalEnergyCO2EmissionsUSA)
+hold on
+plot(T2.Years, mhat.Fitted)
+hold off
+title('Emissioni C0_2 reali vs stimate (fitting lineare una variabile)') 
+xlabel('Tempo [Anni]')
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Emissioni di CO2 dataset','Emissioni di C02 stimati')
+%saveas(f7,[pwd '\immagini\07.VenditeAuto_realeVSstimata_Regr_Sempl.png'])
+
+%%% Adattamento del modello
+mhat.Rsquared
+% Il modello è in grado di spiegare il 55% della variabilità complessiva di Y
+%%% Valori fittati dal modello: yhat_t
+fit70 = mhat.Fitted             
+%%% Residui di regressione: y_t - yhat_t
+res70 = mhat.Residuals.Raw
+
+%% Da fare:
+%1. Aggregazione HDD annuali
+%2. regressione multipla con HDD annuale e anomalie riscaldamento annuale con
+%emissione annuale C02
+%3. analisi dei residui
 
 
 
