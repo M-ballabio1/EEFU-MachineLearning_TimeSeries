@@ -893,3 +893,112 @@ hold on
 plot(xx,lm.Fitted,'r','LineWidth',2)
 plot(xx,lm2.Fitted,'g','LineWidth',2)
 
+%% AGGIUNTE LISA E VANE 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%% Analisi della temperatura con approccio state-space %%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Modello 2: Regressione con coefficiente angolare tempo-variante e intercetta statica
+
+% modello state space a matrici tempo-varianti
+% y(t) = alpha + beta(t)*x(t) + e(t)         --> c'è una costante statica e coefficiente beta che dipende dal tempo 
+% beta(t) = beta(t-1) + omega(t)             --> beta evolve come rendom walk il cui errore è un processo casuale white noise 
+% alpha(t) = alpha(t-1)                      --> è una costante, non c'è errore 
+
+%%% Setting del modello
+m2 = ssm(@(params)tvp_beta_alphaconstant(params,xx,lm.Coefficients.Estimate(1),lm.Coefficients.Estimate(2)));    %beta cambia nel tempo e alfa costante; in base al caso ci sono comandi diversi 
+%%% Valori iniziali per algoritmo massimizzazione
+% valori iniziali di log(B) e log(D)
+params0 = [0.10,log(var(lm.Residuals.Raw))];
+
+%%% Stima MLE dei parametri
+disp('Stima')
+mhat2 = estimate(m2,yy,params0);
+%% all'ultimo istante t la costante è x(1) e il coefficiente angolare è x(2)
+
+%%% Stima degli stimati
+% Filtraggio (filtering) degli stati
+xfilter2 = filter(mhat2,yy);
+alpha2.flt = xfilter2(:,1); %estraggo separatemente in due vettori 
+beta2.flt = xfilter2(:,2);
+plot(alpha2.flt) 
+%ma se alfa non è tempo variante non dovrebbe essere sempre quello il
+%valore stimato? teoricamente si però dal grafico si vede che man mano ci
+%si spostas sulla destra (sempre più info) la stima del coefficiente tende
+%a stabilizzarsi e a convergere. se esso converge modello va bene. 
+% lisciamento (smoothing) degli stati
+plot(beta2.flt) 
+%cattura tutto l'andamento della serie storica in quanto tempovariabile; 
+%ovviamnte in questo caso
+
+xsmooth2 = smooth(mhat2,yy);
+alpha2.smo = xsmooth2(:,1);
+beta2.smo = xsmooth2(:,2);
+plot(alpha2.smo)
+%filtro del filtro (dalla fine all'inizio). lo smoother è il valore ultimo
+%ed è sempre costante 
+plot(beta2.smo)
+%serie di prima ma più liscia 
+
+
+%%% Filtraggio e lisciamento dei valori di y
+% valori filtrati di y
+y2_flt = alpha2.flt + beta2.flt.*xx;
+e2_flt = yy - y2_flt;
+mean(e2_flt)
+var(e2_flt)
+% valori lisciati di y
+y2_smo = alpha2.smo + beta2.smo.*xx;
+e2_smo = yy - y2_smo;
+mean(e2_smo)
+var(e2_smo)
+
+%%% Previsione un passo in avanti degli stati e di y
+% Ad ogni tempo t, il miglior previsore lineare è il valore precedente
+alpha2.forecast = [nan; alpha2.flt(1:end-1)];
+beta2.forecast = [nan; beta2.flt(1:end-1)];
+y2_frc = alpha2.forecast + beta2.forecast.*x; %combino le due e creo la serie forecasting une step ahed di y 
+e2_frc = yy - y2_frc; %errore di previsione
+nanmean(e2_frc)
+nanvar(e2_frc)
+
+%%% Plot della serie originale, filtrata e smussata
+figure(4)
+plot(T11.Rif_Mese, yy)
+hold on
+plot(T11.Rif_Mese, y2_flt)
+plot(T11.Rif_Mese, y2_smo) 
+legend('Emissioni osservate','Emissioni filtrate','emissioni smoothed')
+title('Emissioni stimate con modello State Space con slope tempo-variante con intercetta costante')
+
+%%% Plot della serie originale e previsione un-passo-in-avanti
+figure(5)
+plot(yy)
+hold on
+plot(y2_frc);
+title('Previsione un passo in avanti: state-space con slope tempo-variante con intercetta costante')
+legend('Valori osservati','One-step-ahead KF')
+
+%%% Confronto il modello statico con quello dinamico
+% Fitting performance
+R2_stat = lm.Rsquared.Adjusted
+R2_flt2 = 1 - mean(e2_flt.^2) / var(yy)
+R2_smo2 = 1 - mean(e2_smo.^2) / var(yy)
+R2_frc2 = 1 - nanmean(e2_frc.^2) / var(yy)
+% Forecasting performance
+RMSE_lm = sqrt(lm.MSE)
+RMSE_frc_m2 = sqrt(mse(e2_frc))
+% Plot
+figure(6)
+plot(T11.Rif_Mese, yy)
+hold on
+plot(T11.Rif_Mese, lm.Fitted)
+plot(T11.Rif_Mese, y2_flt)
+plot(T11.Rif_Mese, y2_smo)
+legend('Emissioni osservate','Emissioni modello lineare','Emissioni filtrata','Emissioni smoothed')
+title('Emissioni stimate con modello statico e modello dinamico')
+
+
+
+
+
