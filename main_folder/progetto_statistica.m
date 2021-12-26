@@ -881,7 +881,7 @@ hold on
 plot(T11.Rif_Mese, lm.Fitted)
 plot(T11.Rif_Mese, lm2.Fitted)
 legend('Emissioni osservate','Emissioni fittate lineari','Emissioni fittate quadratiche')
-title('Emissioni stimate con regressione lineare')
+title('Emissioni stimate con regressione lineare (un regressore e due regressori)')
 
 figure(2)
 plot(xx,yy,'p')
@@ -990,6 +990,7 @@ legend('Valori osservati','One-step-ahead KF')
 %%% Confronto il modello statico con quello dinamico
 % Fitting performance
 R2_stat = lm.Rsquared.Adjusted
+R2_stat_QUADR = lm2.Rsquared.Adjusted                    %se l'obiettivo è il fitting, il modello migliore identificabile è questo
 R2_flt2 = 1 - mean(e2_flt.^2) / var(yy)
 R2_smo2 = 1 - mean(e2_smo.^2) / var(yy)
 R2_frc2 = 1 - nanmean(e2_frc.^2) / var(yy)
@@ -1003,9 +1004,10 @@ figure(6)
 plot(T11.Rif_Mese, yy)
 hold on
 plot(T11.Rif_Mese, lm.Fitted)
+plot(T11.Rif_Mese, lm2.Fitted)   %aggiunta da me
 plot(T11.Rif_Mese, y2_flt)
 plot(T11.Rif_Mese, y2_smo)
-legend('Emissioni osservate','Emissioni modello lineare','Emissioni filtrata','Emissioni smoothed')
+legend('Emissioni osservate','Emissioni modello lineare','Emiss modello quadratico','Emissioni filtrata','Emissioni smoothed')
 title('Emissioni stimate con modello statico e modello dinamico')
 
 %per la parte della regressione non riusciamo a fare altro :'(
@@ -1033,9 +1035,9 @@ anova(mhat,'summary')
 
 %PLOT PER VERIFICARE CONFRONTO DATI VERI E STIMATI
 f70 = figure('Position',[100,100,1250,675])
-plot(T2.Years,T2.TotalEnergyCO2EmissionsUSA)
+plot(T1.Years,T1.TotalEnergyCO2EmissionsUSA)
 hold on
-plot(T2.Years, mhat.Fitted)
+plot(T1.Years, mhat.Fitted)
 hold off
 title('Emissioni C0_2 reali vs stimate (fitting lineare una variabile)') 
 xlabel('Tempo [Anni]')
@@ -1057,6 +1059,71 @@ res70 = mhat.Residuals.Raw
 %emissione annuale C02
 %3. analisi dei residui
 
+T1k = T1(:,[20:end]);
+
+%%% REGRESSIONE LINEARE MULTIPLA (prod e cons. aggregati):
+% Modello log-lineare: la dipendente è logaritmica, i regressori sono lineari
+%provare ad usare hdd^2
+mhat5 = fitlm(T1,'ResponseVar','TotalEnergyCO2EmissionsUSA','PredictorVars',{'CoolingDegree_Days_UnitedStates','AnomalieSulRiscaldamento'})
+%%% Coefficienti stimati
+mhat5.Coefficients
+% Intercetta significativa (pv < 0.01)
+% Altre variabili significative (pv < 0.01) --> Consum. NON rinnovab. tot la più
+% significativa
+% R-squared: 0.961, migliore significatività del modello.
+
+%confronto reali vs fitted (+ variabili)
+f9a = figure('Position',[100,100,1250,675])
+plot(T1.Years, T1.TotalEnergyCO2EmissionsUSA)
+hold on
+plot(T1.Years, mhat5.Fitted)
+hold off
+title('Emssione C0_2 reali vs stimate (fitting lineare più variabili climatiche)') 
+xlabel('Tempo [Mesi]')
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Emissioni di CO2 dataset','Emissioni di C02 stimate')
+%saveas(f9a,[pwd '\immagini\09a.Emissioni_realiVSstimate_Regr_Multipla_aggrega.png'])
+
+
+anova(mhat2,'summary')
+%%% Adattamento del modello
+mhat2.Rsquared;
+% Il modello è in grado di spiegare l'30% della variabilità complessiva di Y
+%%% Valori fittati dal modello: yhat_t
+fit2 = mhat2.Fitted;             
+%%% Residui di regressione: y_t - yhat_t
+res2 = mhat2.Residuals.Raw;
+
+%%%ANALISI dei residui 
+% Diagnostiche sui residui: normalità
+f10a = figure()
+set(f10a,'position',[100,100,1250,675]);
+subplot(1,2,1)
+histfit(res2)
+title('Distribuzione dei residui di regressione')
+xlabel('Quantità emessa [Mln di tonnellate]') 
+ylabel('Conteggio')
+
+% Diagnostiche sui residui: incorrelazione tra fittati e residui
+subplot(1,2,2)
+scatter(fit2,res2)        
+h1 = lsline
+h1.Color = 'black';
+h1.LineWidth = 2;
+xlabel('Valori fittati'); 
+ylabel('Residui di regressione');
+%text(30,0.5,sprintf('rho = %0.3f',round(corr(res2,fit2),3)))
+saveas(f10a,[pwd '\immagini\10a.Residui_Regr_Mul_EmissioneC02.png'])
+
+% Indici normalità residui
+skewness(res2)    
+kurtosis(res2)                                                         %abbastanza vicini alla normalità
+% Test normalità residui
+[h,p,jbstat,critval] = jbtest(res2, 0.05);                              % pv = 0.267 --> normalità
+[h,p,jbstat,critval] = jbtest(res2, 0.01);                              % pv = 0.267 --> normalità
+[h,p,dstat,critval] = lillietest(res2,'Alpha',0.05);                    % pv = 0.224 --> normalità
+[h3,p3,ci3,stats3] = ttest(res2);                                       % perfettamente normale
+%I test ci permettono di affermare che la distribuzione è normale (4/4) 
 
 
 
