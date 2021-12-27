@@ -841,11 +841,10 @@ parcorr(std_res2)
 
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%% %%%%% Variabili di interesse
+%% Analisi emissioni C02 basata su dati climatici
+%Variabili di interesse
 yy = T11.Emiss_C02_NTotE;       %variabile di risposta
-xx = T11.HDD;   %variabile predittiva
+xx = T11.HDD;                   %variabile predittiva
 xx2 = xx.^2; 
 XX = [xx,xx2];
 nn = length(yy);
@@ -858,8 +857,6 @@ title('HDD vs Emissioni di CO_2')
 xlabel('HDD [Grado giorno]')
 ylabel('Quantità emessa [Mln di tonnellate]')
 
-%potrebbe essere qualcosa di polinomiale
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% %%%%%%%% Analisi della temperatura con approccio regressione ordinaria %%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -869,12 +866,9 @@ ylabel('Quantità emessa [Mln di tonnellate]')
 % modello di regressione a coefficienti statici
 % y(t) = alpha + beta*x(t) + e(t)
 
-lm = fitlm(xx,yy);  %qui ho usato un solo regressore R^2 = 0.571
-lm
-lm2 = fitlm(XX,yy);  %qui due regressori R^2
-lm2
+lm = fitlm(xx,yy);     %un regressore R^2 = 0.201
+lm2 = fitlm(XX,yy);    %due regressori R^2 = 0.572
 
-%% AGGIUNTE LISA E VANE 
 figure(1)
 plot(T11.Rif_Mese, yy)
 hold on
@@ -892,60 +886,42 @@ hold on
 plot(xx,lm.Fitted,'r','LineWidth',2)
 plot(xx,lm2.Fitted,'g','LineWidth',2)
 
-tt = corr(T11{:,{'Emiss_C02_NTotE','HDD'}}) %corr=0.4486
+tt = corr(T11{:,{'Emiss_C02_NTotE','HDD'}})             %corr=0.448
 rowNames = {'Emissioni CO_2 TOT','HDD'};
 colNames = {'Emissioni CO_2 TOT','HDD'};
 sTable = array2table(tt,'RowNames',rowNames,'VariableNames',colNames) 
 
-tt1=corr(T11.Emiss_C02_NTotE,xx2) %corr=5951 --> correlazione più forte con HDD^2
+tt1=corr(T11.Emiss_C02_NTotE,xx2)                      %corr=0.595 --> correlazione più forte con HDD^2
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% %%%%%%%% Analisi della temperatura con approccio state-space %%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-% Modello 2: Regressione con coefficiente angolare tempo-variante e intercetta statica
-
-% modello state space a matrici tempo-varianti
-% y(t) = alpha + beta(t)*x(t) + e(t)         --> c'è una costante statica e coefficiente beta che dipende dal tempo 
-% beta(t) = beta(t-1) + omega(t)             --> beta evolve come rendom walk il cui errore è un processo casuale white noise 
-% alpha(t) = alpha(t-1)                      --> è una costante, non c'è errore 
-
 %%% Setting del modello
-m2 = ssm(@(params)tvp_beta_alphaconstant(params,xx,lm.Coefficients.Estimate(1),lm.Coefficients.Estimate(2)));    %beta cambia nel tempo e alfa costante; in base al caso ci sono comandi diversi 
-%%% Valori iniziali per algoritmo massimizzazione
+m2 = ssm(@(params)tvp_beta_alphaconstant(params,xx,lm.Coefficients.Estimate(1),lm.Coefficients.Estimate(2)));
 % valori iniziali di log(B) e log(D)
 params0 = [0.10,log(var(lm.Residuals.Raw))];
-
 %%% Stima MLE dei parametri
 disp('Stima')
 mhat2 = estimate(m2,yy,params0);
-%% all'ultimo istante t la costante è x(1) 416.46 e il coefficiente angolare è x(2)  -0.005
+% all'ultimo istante t la costante è x(1) 416.46 e il coefficiente angolare è x(2)  -0.005
 
-%%% Stima degli stimati
-% Filtraggio (filtering) degli stati
+% Filtraggio degli stati
 xfilter2 = filter(mhat2,yy);
-alpha2.flt = xfilter2(:,1); %estraggo separatemente in due vettori 
-beta2.flt = xfilter2(:,2);
+alpha2.flt = xfilter2(:,1);                           
 plot(alpha2.flt) 
-%ma se alfa non è tempo variante non dovrebbe essere sempre quello il
-%valore stimato? teoricamente si però dal grafico si vede che man mano ci
-%si spostas sulla destra (sempre più info) la stima del coefficiente tende
-%a stabilizzarsi e a convergere. se esso converge modello va bene. 
-% lisciamento (smoothing) degli stati
+%La stima del coefficiente tende a stabilizzarsi e a convergere. 
+beta2.flt = xfilter2(:,2);
 plot(beta2.flt) 
 %cattura tutto l'andamento della serie storica in quanto tempovariabile; 
-%ovviamnte in questo caso
 
+%Smoothing degli stati
 xsmooth2 = smooth(mhat2,yy);
 alpha2.smo = xsmooth2(:,1);
-beta2.smo = xsmooth2(:,2);
 plot(alpha2.smo)
-%filtro del filtro (dalla fine all'inizio). lo smoother è il valore ultimo
-%ed è sempre costante 
+%Lo smoother è il valore ultimo ed è sempre costante
+beta2.smo = xsmooth2(:,2);
 plot(beta2.smo)
-%serie di prima ma più liscia 
-
 
 %%% Filtraggio e lisciamento dei valori di y
 % valori filtrati di y
@@ -974,8 +950,8 @@ title('Emissioni stimate con modello State Space con slope tempo-variante con in
 % Ad ogni tempo t, il miglior previsore lineare è il valore precedente
 alpha2.forecast = [nan; alpha2.flt(1:end-1)];
 beta2.forecast = [nan; beta2.flt(1:end-1)];
-y2_frc = alpha2.forecast + beta2.forecast.*xx; %combino le due e creo la serie forecasting une step ahed di y 
-e2_frc = yy - y2_frc; %errore di previsione
+y2_frc = alpha2.forecast + beta2.forecast.*xx;   %combino le due e creo la serie forecasting une step ahed di y 
+e2_frc = yy - y2_frc;                            %errore di previsione
 nanmean(e2_frc)
 nanvar(e2_frc)
 
@@ -995,33 +971,22 @@ R2_flt2 = 1 - mean(e2_flt.^2) / var(yy)
 R2_smo2 = 1 - mean(e2_smo.^2) / var(yy)
 R2_frc2 = 1 - nanmean(e2_frc.^2) / var(yy)
 
-% Forecasting performance
-RMSE_lm = sqrt(lm.MSE)
-RMSE_frc_m2 = sqrt(mse(e2_frc))
-
 % Plot
 figure(6)
 plot(T11.Rif_Mese, yy)
 hold on
-plot(T11.Rif_Mese, lm.Fitted)
-plot(T11.Rif_Mese, lm2.Fitted)   %aggiunta da me
+plot(T11.Rif_Mese, lm2.Fitted)  
 plot(T11.Rif_Mese, y2_flt)
-plot(T11.Rif_Mese, y2_smo)
-legend('Emissioni osservate','Emissioni modello lineare','Emiss modello quadratico','Emissioni filtrata','Emissioni smoothed')
+legend('Emissioni osservate','Emiss modello quadratico','Emissioni filtrata')
 title('Emissioni stimate con modello statico e modello dinamico')
 
-%per la parte della regressione non riusciamo a fare altro :'(
-% la roba del passo pensavamo che fosse una previsione, ma in realtà parte
-% solo ritardata di 1
-
-%se il modello va bene, facciamo analisi dei residui, sceglieremo poi in
-%che modo
-
 %% Correlazione su dati annuali
-tt3=corr(T1.AnomalieSulRiscaldamento, T1.TotalEnergyCO2EmissionsUSA) %corr=0.74
+
+T1K = T1([1:59],:);
+tt3=corr(T1K.AnomalieSulRiscaldamento, T1K.TotalEnergyCO2EmissionsUSA) %corr=0.823
 
 %Regressione lineare semplice: y_t = beta0 + beta1*x_t + epsilon_t
-mhat = fitlm(T1,'ResponseVar','TotalEnergyCO2EmissionsUSA','PredictorVars','AnomalieSulRiscaldamento')   
+mhat = fitlm(T1K,'ResponseVar','TotalEnergyCO2EmissionsUSA','PredictorVars','AnomalieSulRiscaldamento')   
 %%% Coefficienti stimati
 mhat.Coefficients
 % Intercetta significativa ad ogni livello di significatività (pv < 0.01).
@@ -1053,30 +1018,52 @@ fit70 = mhat.Fitted
 %%% Residui di regressione: y_t - yhat_t
 res70 = mhat.Residuals.Raw
 
-%% Da fare:
-%1. Aggregazione HDD annuali
-%2. regressione multipla con HDD annuale e anomalie riscaldamento annuale con
-%emissione annuale C02
-%3. analisi dei residui
+%%%ANALISI dei residui 
+% Diagnostiche sui residui: normalità
+f70a = figure()
+set(f70a,'position',[100,100,1250,675]);
+subplot(1,2,1)
+histfit(res70)
+title('Distribuzione dei residui di regressione')
+xlabel('Quantità emessa [Mln di tonnellate]') 
+ylabel('Conteggio')
 
-T1k = T1(:,[20:end]);
+% Diagnostiche sui residui: incorrelazione tra fittati e residui
+subplot(1,2,2)
+scatter(fit70,res70)        
+h1 = lsline
+h1.Color = 'black';
+h1.LineWidth = 2;
+xlabel('Valori fittati'); 
+ylabel('Residui di regressione');
+%text(30,0.5,sprintf('rho = %0.3f',round(corr(res2,fit2),3)))
+%saveas(f10a,[pwd '\immagini\10a.Residui_Regr_Mul_EmissioneC02.png'])
+
+% Indici normalità residui
+skewness(res70)    
+kurtosis(res70)                                                         %abbastanza vicini alla normalità
+% Test normalità residui
+[h,p,jbstat,critval] = jbtest(res70, 0.05)                              % pv = 0.0372 --> non normalità
+[h,p,jbstat,critval] = jbtest(res70, 0.01)                              % pv = 0.0372 --> normalità
+[h,p,dstat,critval] = lillietest(res70,'Alpha',0.05)                    % pv = 0.0086 --> non normalità
+[h3,p3,ci3,stats3] = ttest(res70)                                       % perfettamente normale
+
+
 
 %%% REGRESSIONE LINEARE MULTIPLA (prod e cons. aggregati):
-% Modello log-lineare: la dipendente è logaritmica, i regressori sono lineari
-%provare ad usare hdd^2
-mhat5 = fitlm(T1,'ResponseVar','TotalEnergyCO2EmissionsUSA','PredictorVars',{'CoolingDegree_Days_UnitedStates','AnomalieSulRiscaldamento'})
+% Modello log-lineare: la dipendente è logaritmica, i regressori sono
+% lineari (anni 1949-2007)
+
+T1K.HDD_QUAD = HDD.^2
+mhat7 = fitlm(T1K,'ResponseVar','TotalEnergyCO2EmissionsUSA','PredictorVars',{'HDD_QUAD','CoolingDegree_Days_UnitedStates','AnomalieSulRiscaldamento','HeatingDegree_Days_UnitedStates'})
 %%% Coefficienti stimati
-mhat5.Coefficients
-% Intercetta significativa (pv < 0.01)
-% Altre variabili significative (pv < 0.01) --> Consum. NON rinnovab. tot la più
-% significativa
-% R-squared: 0.961, migliore significatività del modello.
+mhat7.Coefficients
 
 %confronto reali vs fitted (+ variabili)
 f9a = figure('Position',[100,100,1250,675])
-plot(T1.Years, T1.TotalEnergyCO2EmissionsUSA)
+plot(T1K.Years, T1K.TotalEnergyCO2EmissionsUSA)
 hold on
-plot(T1.Years, mhat5.Fitted)
+plot(T1K.Years, mhat7.Fitted)
 hold off
 title('Emssione C0_2 reali vs stimate (fitting lineare più variabili climatiche)') 
 xlabel('Tempo [Mesi]')
@@ -1084,45 +1071,42 @@ ylabel('Quantità emessa [Mln di tonnellate]')
 legend('Emissioni di CO2 dataset','Emissioni di C02 stimate')
 %saveas(f9a,[pwd '\immagini\09a.Emissioni_realiVSstimate_Regr_Multipla_aggrega.png'])
 
-
-anova(mhat2,'summary')
 %%% Adattamento del modello
-mhat2.Rsquared;
+mhat7.Rsquared;
 % Il modello è in grado di spiegare l'30% della variabilità complessiva di Y
 %%% Valori fittati dal modello: yhat_t
-fit2 = mhat2.Fitted;             
+fit7 = mhat7.Fitted;             
 %%% Residui di regressione: y_t - yhat_t
-res2 = mhat2.Residuals.Raw;
+res7 = mhat7.Residuals.Raw;
 
 %%%ANALISI dei residui 
 % Diagnostiche sui residui: normalità
 f10a = figure()
 set(f10a,'position',[100,100,1250,675]);
 subplot(1,2,1)
-histfit(res2)
+histfit(res7)
 title('Distribuzione dei residui di regressione')
 xlabel('Quantità emessa [Mln di tonnellate]') 
 ylabel('Conteggio')
 
 % Diagnostiche sui residui: incorrelazione tra fittati e residui
 subplot(1,2,2)
-scatter(fit2,res2)        
+scatter(fit7,res7)        
 h1 = lsline
 h1.Color = 'black';
 h1.LineWidth = 2;
 xlabel('Valori fittati'); 
 ylabel('Residui di regressione');
-%text(30,0.5,sprintf('rho = %0.3f',round(corr(res2,fit2),3)))
-saveas(f10a,[pwd '\immagini\10a.Residui_Regr_Mul_EmissioneC02.png'])
+
 
 % Indici normalità residui
-skewness(res2)    
-kurtosis(res2)                                                         %abbastanza vicini alla normalità
+skewness(res7)    
+kurtosis(res7)                                                         %abbastanza vicini alla normalità
 % Test normalità residui
-[h,p,jbstat,critval] = jbtest(res2, 0.05);                              % pv = 0.267 --> normalità
-[h,p,jbstat,critval] = jbtest(res2, 0.01);                              % pv = 0.267 --> normalità
-[h,p,dstat,critval] = lillietest(res2,'Alpha',0.05);                    % pv = 0.224 --> normalità
-[h3,p3,ci3,stats3] = ttest(res2);                                       % perfettamente normale
+[h,p,jbstat,critval] = jbtest(res7, 0.05)                               % pv = 0.500 --> normalità
+[h,p,jbstat,critval] = jbtest(res7, 0.01);                              % pv = 0.500 --> normalità
+[h,p,dstat,critval] = lillietest(res7,'Alpha',0.05)                     % pv = 0.386 --> normalità
+[h3,p3,ci3,stats3] = ttest(res7);                                       % perfettamente normale
 %I test ci permettono di affermare che la distribuzione è normale (4/4) 
 
 
