@@ -839,8 +839,6 @@ parcorr(std_res2)
 
 
 
-
-
 %% Analisi emissioni C02 basata su dati climatici
 %Variabili di interesse
 yy = T11.Emiss_C02_NTotE;       %variabile di risposta
@@ -866,8 +864,8 @@ ylabel('Quantità emessa [Mln di tonnellate]')
 % modello di regressione a coefficienti statici
 % y(t) = alpha + beta*x(t) + e(t)
 
-lm = fitlm(xx,yy);     %un regressore R^2 = 0.201
-lm2 = fitlm(XX,yy);    %due regressori R^2 = 0.572
+lm = fitlm(xx,yy)     %un regressore R^2 = 0.201
+lm2 = fitlm(XX,yy)    %due regressori R^2 = 0.572
 
 figure(1)
 plot(T11.Rif_Mese, yy)
@@ -885,6 +883,7 @@ ylabel('Quantità emessa [Mln di tonnellate]')
 hold on
 plot(xx,lm.Fitted,'r','LineWidth',2)
 plot(xx,lm2.Fitted,'g','LineWidth',2)
+legend('Osservati','Lineare', 'Quadratico')
 
 tt = corr(T11{:,{'Emiss_C02_NTotE','HDD'}})             %corr=0.448
 rowNames = {'Emissioni CO_2 TOT','HDD'};
@@ -980,13 +979,23 @@ plot(T11.Rif_Mese, y2_flt)
 legend('Emissioni osservate','Emiss modello quadratico','Emissioni filtrata')
 title('Emissioni stimate con modello statico e modello dinamico')
 
-%% Correlazione su dati annuali
+figure(100)
+plot(T11.Rif_Mese,T11.HDD)
+legend('data','7^{th} order fit','location','southeast')
+
+figure(101)
+plot(T11.Rif_Mese,T11.Emiss_C02_NTotE)
+legend('data','7^{th} order fit','location','southeast')
+
+%% Correlazione su dati annuali 
+
+%fino al 2007
 
 T1K = T1([1:59],:);
 tt3=corr(T1K.AnomalieSulRiscaldamento, T1K.TotalEnergyCO2EmissionsUSA) %corr=0.823
 
 %Regressione lineare semplice: y_t = beta0 + beta1*x_t + epsilon_t
-mhat = fitlm(T1K,'ResponseVar','TotalEnergyCO2EmissionsUSA','PredictorVars','AnomalieSulRiscaldamento')   
+mhat = fitlm(T1,'ResponseVar','AnomalieSulRiscaldamento','PredictorVars',{'TotalEnergyCO2EmissionsUSA','TotalEnergyCO2EmissionChina','TotalEnergyCO2EmissionRussia'})   
 %%% Coefficienti stimati
 mhat.Coefficients
 % Intercetta significativa ad ogni livello di significatività (pv < 0.01).
@@ -1054,6 +1063,7 @@ kurtosis(res70)                                                         %abbasta
 % Modello log-lineare: la dipendente è logaritmica, i regressori sono
 % lineari (anni 1949-2007)
 
+HDD = T1K.HeatingDegree_Days_UnitedStates
 T1K.HDD_QUAD = HDD.^2
 mhat7 = fitlm(T1K,'ResponseVar','TotalEnergyCO2EmissionsUSA','PredictorVars',{'HDD_QUAD','CoolingDegree_Days_UnitedStates','AnomalieSulRiscaldamento','HeatingDegree_Days_UnitedStates'})
 %%% Coefficienti stimati
