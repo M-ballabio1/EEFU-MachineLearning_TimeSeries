@@ -449,30 +449,51 @@ saveas(f12,[pwd '\immagini\12.Emissioni_realiVSstimate_Lasso.png'])
 %%% fare un possibile confronto da inserire nel report
 
 %% Rappresentazione grafica della serie storica
-f12 = figure('Position',[100,100,1250,675])
+f13a = figure('Position',[100,100,1250,675])
 plot(T11.Rif_Mese,T11.Emiss_C02_NTotE)
 title('Andamento delle emissioni di C0_2 da gennaio 2010 a luglio 2021')
 xlabel('Tempo [Mesi]') 
 ylabel('Quantità emessa [Mln di tonnellate]')
+grid on
+month = ["Gennaio 2010","Gennaio 2012","Gennaio 2014","Gennaio 2016","Gennaio 2018","Gennaio 2018"];
+xticklabels(month)
+saveas(f13a,[pwd '\immagini\13a.Serie_storica_emissioni.png'])
 
 % AUTOREGRESSIVI: Caratteristiche grafiche della serie: autocorrelazioni e distribuzione
 f13 = figure('Position',[100,100,1250,675])
+sgtitle('Emissioni di C0_2 da gennaio 2010 a luglio 2021')
 % Serie storica
-subplot(2,2,1)      
+subplot(2,2,1)  
+grid on
 plot(T11.Rif_Mese,T11.Emiss_C02_NTotE);
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+month = ["Gen 2010","Gen 2012","Gen 2014","Gen 2016","Gen 2018","Gen 2018"];
+xticklabels(month)
+set(findobj(gcf,'type','axes'),'FontName','Calibri','FontSize',11, ...
+'FontWeight','Bold', 'LineWidth', 1,'layer','top');grid on                             %decoratore per grafici e figure
 title('Serie storica delle emissioni di C0_2')
 % Istogramma della distribuzione
-subplot(2,2,2)       
+subplot(2,2,2) 
+grid on
 histfit(T11.Emiss_C02_NTotE,20,'Normal')
+xlabel('Quantità emessa [Mln di tonnellate]') 
+ylabel('Conteggio')
+set(findobj(gcf,'type','axes'),'FontName','Calibri','FontSize',11, ...
+'FontWeight','Bold', 'LineWidth', 1,'layer','top');grid on
 title('Istogramma della distribuzione')
 % Autocorrelazioni
 subplot(2,2,3)       
 autocorr(T11.Emiss_C02_NTotE, 48);
+set(findobj(gcf,'type','axes'),'FontName','Calibri','FontSize',11, ...
+'FontWeight','Bold', 'LineWidth', 1,'layer','top');grid on
 title('ACF delle innovazioni')
 % Autocorrelazioni parziali
 subplot(2,2,4)       
 parcorr(T11.Emiss_C02_NTotE, 48);
 title('PACF delle innovazioni')
+set(findobj(gcf,'type','axes'),'FontName','Calibri','FontSize',11, ...
+'FontWeight','Bold', 'LineWidth', 1,'layer','top');grid on
 saveas(f13,[pwd '\immagini\13.ACF_PACF_Emissioni.png'])
 % in questo caso acf si nota che è stagionale ritardo 12.
 % PACF --> si nota una stagionalità ogni 12 mesi, ma varia la
@@ -492,7 +513,7 @@ saveas(f13,[pwd '\immagini\13.ACF_PACF_Emissioni.png'])
 % Augmented-Dickey-Fuller test per stazionarietà
 % H0 = la serie è non stazionaria
 % H1 = la serie è stazionaria
-[h,p,adfstat,critval] = adftest(T11.Emiss_C02_NTotE,'model','TS','lags',0:24)
+[h,p,adfstat,critval] = adftest(T11.Emiss_C02_NTotE,'model','TS','lags',0:48)
 
 
 %%%%% Modelli ARIMA
@@ -573,7 +594,6 @@ saveas(f15,[pwd '\immagini\15.Fitting_ARIMA.png'])
 
 RMSE = sqrt(mean((y_test_m - fit_right2).^2))  % Root Mean Squared Error = 24.13
 
-
 %%%% Metodo iterativo scelta parametri per minimizzare l'AIC e il BIC
 
 pMax = 3;
@@ -600,7 +620,7 @@ for p = 0:pMax
             Mdl = arima('ARLags',1:p,'MALags',1:q,'SARLags',12);
         end      
         % Stima del modello con MLE
-        EstMdl = estimate(Mdl,T11.Emiss_C02_NTotE,'Display','off');
+        EstMdl = estimate(Mdl,y_train_m,'Display','off');
         % Salvataggio AIC e BIC
         results = summarize(EstMdl);
         AIC(p+1,q+1) = results.AIC;         % p = rows
@@ -617,25 +637,55 @@ minBIC = min(min(BIC))
 bestP_BIC = bestP_BIC - 1; bestQ_BIC = bestQ_BIC - 1; 
 fprintf('%s%d%s%d%s','The model with minimum AIC is SARIMA((', bestP_AIC,',0,',bestQ_AIC,'),(12,0,0))');
 fprintf('%s%d%s%d%s','The model with minimum BIC is SARIMA((', bestP_BIC,',0,',bestQ_BIC,'),(12,0,0))');
-% Scegliamo il modello più parsimonioso: SARIMA((1,0,),(12,0,0))
+% Scegliamo il modello più parsimonioso: SARIMA((1,0,0),(12,0,0))
 % Parsimonioso inteso come minor numero di parametri (Rasoio di Occam)
 % In generale BIC penalizza di più la verosimiglianza quindi è più 
 % parsimonioso (modello più semplice con minor numero di parametri).
 SARIMA_opt = arima('ARLags',1,'SARLags',12);
-Est_SARIMA_opt = estimate(SARIMA_opt,T11.Emiss_C02_NTotE);
-E = infer(Est_SARIMA_opt, T11.Emiss_C02_NTotE, 'Y0',T11.Emiss_C02_NTotE(1:14));
-fittedSARIMA_opt = T11.Emiss_C02_NTotE + E;
+summarize(SARIMA_opt)
+Est_SARIMA_opt = estimate(SARIMA_opt,y_train_m);
+summarize(Est_SARIMA_opt)
+E = infer(Est_SARIMA_opt, y_test_m, 'Y0',T11.Emiss_C02_NTotE(1:14));
+fittedSARIMA_opt = y_test_m + E;
 
 fitted_test_SAR = fittedSARIMA_opt([116:end],:);
 
 % Analisi grafica delle autocorrelazioni dei FITTATI (RIGURDARE)
-RMSE = sqrt(mean((y_test_m - fitted_test_SAR).^2))  % Root Mean Squared Error = 21.08
+RMSE = sqrt(mean((y_test_m - fittedSARIMA_opt).^2))  % Root Mean Squared Error = 42.52
+
+%%%%% Modelli ARIMA (TROVATO CON ciclo for (togliendo componente stagionale)
+% Modello ARIMA((3,0,3)
+% y_t = alpha1*y_t-1 + Alpha12*y_t-12 + eps_t
+
+MA11 = arima(3,0,3);                                                             % AUTOREGRESSIVO DI GRADO 2, A MEDIA MOBILE DI 2
+MAS11 = estimate(MA11,y_train_m,'Display','off');
+summarize(MAS11);
+innovMA112 = infer(MAS11, y_train_m, 'Y0',y_train_m(1:6));  
+%fittedMA112 = T11.Emiss_C02_NTotE + innovMA112;
+innov_te2 = infer(MAS11, y_test_m, 'Y0',y_test_m(1:6));
+%fitted = y_train_m + innov_tr;
+new_2 = forecast(MAS11,24,y_test_m);
+fit_right3 = new_2+innov_te2;
+
+f15a = figure('Position',[100,100,1250,675])
+plot(Period_train,y_train_m)
+hold on
+plot(Period_test,y_test_m)
+plot(Period_test,fit_right2)
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Osservata train','Osservata test','Fittata con ARIMA')
+title('Serie storica osservata e fittata con ARIMA(3,0,3)')
+saveas(f15a,[pwd '\immagini\15a.Fitting_ARIMA(3,0,3).png'])
+
+RMSE = sqrt(mean((y_test_m - fit_right2).^2))  % Root Mean Squared Error = 26.11
+
 
 %%% Grafico della serie osservata e stimata/fittata
 f16 = figure('Position',[100,100,1250,675])
 plot(T11.Rif_Mese,T11.Emiss_C02_NTotE)
 hold on
-plot(Period_test,fitted_test_SAR)
+plot(Period_test,fittedSARIMA_opt)
 plot(Period_test,fit_right2)
 plot(Period_test,fit_right)
 xlabel('Tempo [Mesi]') 
@@ -649,13 +699,14 @@ saveas(f16,[pwd '\immagini\16.ConfrontoModelli.png'])
 f16a = figure('Position',[100,100,1250,675])
 plot(Period_test,y_test_m,'LineWidth', 2)
 hold on
-plot(Period_test,fitted_test_SAR)
+plot(Period_test,fittedSARIMA_opt)
 plot(Period_test,fit_right2)
+plot(Period_test,fit_right3)
 plot(Period_test,fit_right)
 xlabel('Tempo [Mesi]') 
 ylabel('Quantità emessa [Mln di tonnellate]')
 legend('Osservata','SARIMA((1,0,1),(12,0,0))',...
-    'ARIMA(1,0,3)','AR(12)')
+    'ARIMA(2,0,2)','ARIMA(3,0,3)','AR(12)')
 title('Serie storica osservata e fittata con diversi modelli')
 saveas(f16a,[pwd '\immagini\16a.ConfrontoModelli_test.png'])
 
@@ -836,6 +887,8 @@ autocorr(std_res2)
 subplot(2,2,4)
 parcorr(std_res2)
 % I residui standardizzati al quadrato non presentano più autocorrelazione
+
+
 
 
 
@@ -1118,7 +1171,3 @@ kurtosis(res7)                                                         %abbastan
 [h,p,dstat,critval] = lillietest(res7,'Alpha',0.05)                     % pv = 0.386 --> normalità
 [h3,p3,ci3,stats3] = ttest(res7);                                       % perfettamente normale
 %I test ci permettono di affermare che la distribuzione è normale (4/4) 
-
-
-
-
