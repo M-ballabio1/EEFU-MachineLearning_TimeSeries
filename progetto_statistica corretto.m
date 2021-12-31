@@ -831,7 +831,7 @@ sTable = array2table(tt,'RowNames',rowNames,'VariableNames',colNames)
 
 tt1=corr(T11.Emiss_C02_NTotE,xx2) %corr=0.5951 --> correlazione più forte con HDD^2
 
-% Analisi della temperatura con approccio state-space
+% Analisi emissioni con approccio state-space
 % Modello 2: Regressione con coefficiente angolare tempo-variante e intercetta statica
 %%% Setting del modello
 m2 = ssm(@(params)tvp_beta_alphaconstant(params,xx,lm.Coefficients.Estimate(1),lm.Coefficients.Estimate(2)));
