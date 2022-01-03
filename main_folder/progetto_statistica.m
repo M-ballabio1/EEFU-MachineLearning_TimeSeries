@@ -99,6 +99,7 @@ skewness(T11.Emiss_C02_NTotE)
 
 %{
 (BoxCox trasf normalizzante se prima esce H1)
+
 [transdat,lambda] = boxcox(T11.Emiss_C02_NTotE)
 T11_EMISSIONI_bc = boxcox(lambda,T11.Emiss_C02_NTotE); 
 histfit((T11_EMISSIONI_bc),20,'normal')        
@@ -142,7 +143,7 @@ saveas(f5,[pwd '\immagini\05.ScatterPlot_Carbone_Eolica.png'])
 tt = corr(T11{:,{'Emiss_C02_NTotE','Produz_Carbone','Produz_Eolica'}})
 rowNames = {'Emissioni CO_2 TOT','Prod_Carbone','Prod_Eolica'};
 colNames = {'Emissioni CO_2 TOT','Prod_Carbone','Prod_Eolica'};
-sTable = array2table(tt,'RowNames',rowNames,'VariableNames',colNames)  
+sTable = array2table(tt,'RowNames',rowNames,'VariableNames',colNames); 
 
 % Scatter per più variabili con R^2
 f6 = figure
@@ -179,7 +180,7 @@ saveas(f7,[pwd '\immagini\07.VenditeAuto_realeVSstimata_Regr_Sempl.png'])
 
 %%% Adattamento del modello
 mhat.Rsquared
-% Il modello è in grado di spiegare il 30% della variabilità complessiva di Y
+% Il modello è in grado di spiegare il 53,7% della variabilità complessiva di Y
 %%% Valori fittati dal modello
 fit1 = mhat.Fitted             
 %%% Residui di regressione
@@ -242,7 +243,7 @@ saveas(f9a,[pwd '\immagini\09a.Emissioni_realiVSstimate_Regr_Multipla_aggrega.pn
 anova(mhat2,'summary')
 %%% Adattamento del modello
 mhat2.Rsquared;
-% Il modello è in grado di spiegare l'30% della variabilità complessiva di Y
+% Il modello è in grado di spiegare l'96,1% della variabilità complessiva di Y
 %%% Valori fittati dal modello: yhat_t
 fit2 = mhat2.Fitted;             
 %%% Residui di regressione: y_t - yhat_t
@@ -445,7 +446,7 @@ parcorr(T11.Emiss_C02_NTotE, 48);
 title('PACF delle innovazioni')
 saveas(f13,[pwd '\immagini\13.ACF_PACF_Emissioni.png'])
 % in questo caso acf si nota che è stagionale ritardo 12.
-% PACF --> si nota una stagionalità ogni 12 mesi, ma varia la
+% PACF --> si nota una stagionalità ogni 12 mesi, ma la
 % significatività varia annualmente.
 
 % Test di Bera-Jarque di normalità - H0 = dati normali
@@ -534,6 +535,7 @@ RMSE = sqrt(mean((y_test_m - fit_right2).^2))  % Root Mean Squared Error = 24.13
 
 
 %%%% Metodo iterativo scelta parametri per minimizzare l'AIC e il BIC
+
 pMax = 3;
 qMax = 3;
 AIC = zeros(pMax+1,qMax+1);
@@ -558,7 +560,7 @@ for p = 0:pMax
             Mdl = arima('ARLags',1:p,'MALags',1:q,'SARLags',12);
         end      
         % Stima del modello con MLE
-        EstMdl = estimate(Mdl,T11.Emiss_C02_NTotE,'Display','off');
+        EstMdl = estimate(Mdl,y_train_m,'Display','off');
         % Salvataggio AIC e BIC
         results = summarize(EstMdl);
         AIC(p+1,q+1) = results.AIC;         % p = rows
@@ -576,17 +578,18 @@ bestP_BIC = bestP_BIC - 1; bestQ_BIC = bestQ_BIC - 1;
 fprintf('%s%d%s%d%s','The model with minimum AIC is SARIMA((', bestP_AIC,',0,',bestQ_AIC,'),(12,0,0))');
 fprintf('%s%d%s%d%s','The model with minimum BIC is SARIMA((', bestP_BIC,',0,',bestQ_BIC,'),(12,0,0))');
 % Scegliamo il modello più parsimonioso: SARIMA((1,0,0),(12,0,0))
-% Parsimonioso inteso come minor numero di parametri
+% Parsimonioso inteso come minor numero di parametri (Rasoio di Occam)
 % In generale BIC penalizza di più la verosimiglianza quindi è più 
 % parsimonioso (modello più semplice con minor numero di parametri).
 SARIMA_opt = arima('ARLags',1,'SARLags',12);
-Est_SARIMA_opt = estimate(SARIMA_opt,T11.Emiss_C02_NTotE);
-E = infer(Est_SARIMA_opt, T11.Emiss_C02_NTotE, 'Y0',T11.Emiss_C02_NTotE(1:14));
-fittedSARIMA_opt = T11.Emiss_C02_NTotE + E;
-fitted_test_SAR = fittedSARIMA_opt([116:end],:);
+summarize(SARIMA_opt)
+Est_SARIMA_opt = estimate(SARIMA_opt,y_train_m);
+summarize(Est_SARIMA_opt)
+E = infer(Est_SARIMA_opt, y_test_m, 'Y0',T11.Emiss_C02_NTotE(1:14));
+fittedSARIMA_opt = y_test_m + E;
 
-% Analisi grafica delle autocorrelazioni dei FITTATI (RIGURDARE)
-RMSE = sqrt(mean((y_test_m - fitted_test_SAR).^2))  % Root Mean Squared Error = 21.0852
+% RMSE del test
+RMSE = sqrt(mean((y_test_m - fittedSARIMA_opt).^2))  % Root Mean Squared Error = 42,527
 
 %%%%% Modelli ARIMA (TROVATO CON ciclo for (togliendo componente stagionale)
 % Modello ARIMA((3,0,3)
@@ -617,7 +620,7 @@ saveas(f15a,[pwd '\immagini\15a.Fitting_ARIMA(3,0,3).png'])
 f16 = figure('Position',[100,100,1250,675])
 plot(T11.Rif_Mese,T11.Emiss_C02_NTotE)
 hold on
-plot(Period_test,fitted_test_SAR)
+plot(Period_test,fittedSARIMA_opt)
 plot(Period_test,fit_right2)
 plot(Period_test,fit_right3)
 plot(Period_test,fit_right)
@@ -632,7 +635,7 @@ saveas(f16,[pwd '\immagini\16.ConfrontoModelli.png'])
 f16a = figure('Position',[100,100,1250,675])
 plot(Period_test,y_test_m,'LineWidth', 2)
 hold on
-plot(Period_test,fitted_test_SAR)
+plot(Period_test,fittedSARIMA_opt)
 plot(Period_test,fit_right2)
 plot(Period_test,fit_right3)
 plot(Period_test,fit_right)
@@ -642,6 +645,11 @@ legend('Osservata','SARIMA((1,0,1),(12,0,0))',...
     'ARIMA(2,0,2)','ARIMA(3,0,3)','AR(12)')
 title('Serie storica osservata e fittata con diversi modelli')
 saveas(f16a,[pwd '\immagini\16a.ConfrontoModelli_test.png'])
+
+%normalizzazione residui per test ADF
+media_adf = mean(innov_te2)
+innovazioni_normalizzate = innov_te2-media_adf
+media_nuova = mean(innovazioni_normalizzate)
 
 %%% Analisi grafica deI residui
 f17 = figure('Position',[100,100,1250,675])
@@ -661,11 +669,6 @@ subplot(2,2,4)
 parcorr(innov_te2);
 title('PACF dei residui')
 saveas(f17,[pwd '\immagini\17.ACF_PACF_ARIMA(2,0,2).png'])
-
-%normalizzazione residui per test ADF
-media_adf = mean(innov_te2)
-innovazioni_normalizzate = innov_te2-media_adf
-media_nuova = mean(innovazioni_normalizzate)
 
 % Test analitici sui residui
 [h,p,jbstat,critval] = jbtest(innov_te2)                                  % i dati sono normali             
@@ -691,125 +694,6 @@ subplot(2,2,2)
 parcorr(res_k)
 title('PACF residui')
 saveas(f18,[pwd '\immagini\18.ACF_PACF_residui_modellati.png'])
-
-
-%{
-%%%Autocorrelazione totale e parziale dei residui (E) e dei residui al
-%%%quadrato (E2)
-E2 = E.^2;
-
-figure(1)
-subplot(2,2,1)
-autocorr(E,48)
-title('ACF residui filtro')
-subplot(2,2,2)
-parcorr(E,48)
-title('PACF residui filtro')
-subplot(2,2,3)
-autocorr(E2,48)
-title('ACF residui filtro^2')
-subplot(2,2,4)
-parcorr(E2,48)
-title('PACF residui filtro^2')
-% Residui risultano autocorrelati --> Whitening
-% Residui al quadrato risultano autocorrelati --> GARCH
-
-%Modellazione dell'eteroschedasticità
-%ARCH(1) = GARCH(0,1)    %solo componente autoregressiva
-m0 = garch(0,1)
-[mhat,covM,logL] = estimate(m0,res);
-condVhat = infer(mhat,res);             %estraggo residui condizionati ossia e^(2).
-condVol = sqrt(condVhat);               %conditional volatility
-% AIC e BIC
-n = length(T11.Emiss_C02_NTotE);
-[a,b] = aicbic(logL,mhat.P+mhat.Q,n)
-% Plot dei valori fittati
-figure
-plot(T11.Rif_Mese,res)
-hold on;
-plot(T11.Rif_Mese,condVol)
-title('Residui e inferred conditional volatility con GARCH(0,1)')
-xlabel('Time')
-legend('Prices','Estim. cond. volatility','Location','NorthEast')
-hold off;
-
-%%% Standardized residuals
-std_res = res ./ condVol;
-std_res2 = std_res .^ 2;
-
-%%% Diagnostiche sui residui standardizzati
-figure
-subplot(2,2,1)
-plot(std_res)
-title('Standardized Residuals')
-subplot(2,2,2)
-histogram(std_res,10)
-subplot(2,2,3)
-autocorr(std_res)
-subplot(2,2,4)
-parcorr(std_res)
-
-figure
-subplot(2,2,1)
-plot(std_res2)
-title('Standardized Residuals Squared')
-subplot(2,2,2)
-histogram(std_res2,10)
-subplot(2,2,3)
-autocorr(std_res2)
-subplot(2,2,4)
-parcorr(std_res2)
-% I residui al quadrato presentano ancora autocorrelazione ma non
-% importante come nel caso precedente.
-
-
-%%% GARCH(1,1)      %sia autoregressivo che media mobile (1,1)
-m0 = garch(1,1)
-[mhat,covM,logL] = estimate(m0,res);
-condVhat = infer(mhat,res);
-condVol = sqrt(condVhat);
-% AIC e BIC
-[a,b] = aicbic(logL,mhat.P+mhat.Q,n)
-% Plot dei valori fittati
-figure
-plot(T11.Rif_Mese,res)
-hold on;
-plot(T11.Rif_Mese,condVol)
-title('Residui e inferred conditional volatility con GARCH(0,1)')
-xlabel('Time')
-legend('Prices','Estim. cond. volatility','Location','NorthEast')
-hold off;
-% Presenza di volatility clusters (picchi ascendenti e discendenti) ben identificati
-% e regolari lungo la serie
-
-%%% Standardized residuals
-std_res = res ./ condVol;
-std_res2 = std_res .^ 2;
-
-%%% Diagnostiche sui residui standardizzati
-figure
-subplot(2,2,1)
-plot(std_res)
-title('Standardized Residuals')
-subplot(2,2,2)
-histogram(std_res,10)
-subplot(2,2,3)
-autocorr(std_res)
-subplot(2,2,4)
-parcorr(std_res)
-
-figure
-subplot(2,2,1)
-plot(std_res2)
-title('Standardized Residuals squared')
-subplot(2,2,2)
-histogram(std_res2,10)
-subplot(2,2,3)
-autocorr(std_res2)
-subplot(2,2,4)
-parcorr(std_res2)
-% I residui standardizzati al quadrato non presentano più autocorrelazione
-%}
 
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -839,11 +723,13 @@ hold on
 plot(T11.Rif_Mese, lm.Fitted)
 plot(T11.Rif_Mese, lm2.Fitted)
 legend('Emissioni osservate','Emissioni fittate lineari','Emissioni fittate quadratiche')
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
 title('Emissioni stimate con regressione lineare')
 saveas(f19,[pwd '\immagini\19.Confronti_modelli_statici_con_HDD.png'])
 
 %confronto regressioni
-figure(2)
+f20 = figure('Position',[100,100,1250,675])
 plot(xx,yy,'p')
 title('HDD vs Emissioni di CO_2')
 xlabel('HDD [Grado giorno]')
@@ -851,6 +737,8 @@ ylabel('Quantità emessa [Mln di tonnellate]')
 hold on
 plot(xx,lm.Fitted,'r','LineWidth',2)
 plot(xx,lm2.Fitted,'g','LineWidth',2)
+legend('Osservati','Regressione lineari','Regressione quadratica')
+saveas(f20,[pwd '\immagini\20.Confronto_regressione_lin_quad_con_HDD.png'])
 
 tt = corr(T11{:,{'Emiss_C02_NTotE','HDD'}}) %corr=0.44857
 rowNames = {'Emissioni CO_2 TOT','HDD'};
@@ -859,16 +747,80 @@ sTable = array2table(tt,'RowNames',rowNames,'VariableNames',colNames)
 
 tt1=corr(T11.Emiss_C02_NTotE,xx2) %corr=0.5951 --> correlazione più forte con HDD^2
 
+%%% Scelta del modello state-space che minimizza AIC e BIC (confronto tra
+%%% due)
+
 % Analisi emissioni con approccio state-space (MODELLO DINAMICO)
-% Modello 2: Regressione con coefficiente angolare tempo-variante e intercetta statica
+% Modello 2: Regressione con coefficiente angolare tempo-variante e
+% intercetta statica (alpha statico e beta varia)
 %%% Setting del modello
-m2 = ssm(@(params)tvp_beta_alphaconstant(params,xx,lm.Coefficients.Estimate(1),lm.Coefficients.Estimate(2)));
+m1 = ssm(@(params)tvp_beta_alphaconstant(params,xx,lm.Coefficients.Estimate(1),lm.Coefficients.Estimate(2)));
 % valori iniziali di log(B) e log(D)
-params0 = [0.10,log(var(lm.Residuals.Raw))];
+params01 = [0.10,log(var(lm.Residuals.Raw))];
+%%% Stima MLE dei parametri
+disp('Stima')
+mhat1 = estimate(m1,yy,params01);
+% all'ultimo istante t la costante è x(1) 416.46 e il coefficiente angolare è x(2)  -0.005
+
+% Filtraggio degli stati
+xfilter2 = filter(mhat1,yy);
+alpha2.flt = xfilter2(:,1);                           
+plot(alpha2.flt) 
+%La stima del coefficiente tende a stabilizzarsi e a convergere
+beta2.flt = xfilter2(:,2);
+plot(beta2.flt) 
+%cattura tutto l'andamento della serie storica in quanto tempovariabile 
+
+%Smoothing degli stati
+xsmooth2 = smooth(mhat1,yy);
+alpha2.smo = xsmooth2(:,1);
+plot(alpha2.smo)
+%Lo smoother è il valore ultimo ed è sempre costante
+beta2.smo = xsmooth2(:,2);
+plot(beta2.smo)
+
+%%% Filtraggio e lisciamento dei valori di y
+% valori filtrati di y
+y2_flt = alpha2.flt + beta2.flt.*xx;
+e2_flt = yy - y2_flt;
+mean(e2_flt)
+var(e2_flt)
+% valori lisciati di y
+y2_smo = alpha2.smo + beta2.smo.*xx;
+e2_smo = yy - y2_smo;
+mean(e2_smo)
+var(e2_smo)
+
+%%% Plot della serie originale, filtrata e smussata
+f21 = figure('Position',[100,100,1250,675])
+plot(T11.Rif_Mese, yy)
+hold on
+plot(T11.Rif_Mese, y2_flt)
+plot(T11.Rif_Mese, y2_smo) 
+legend('Emissioni osservate','Emissioni filtrate','Emissioni smoothed')
+title('Emissioni stimate con modello State Space con slope tempo-variante con intercetta costante')
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+saveas(f21,[pwd '\immagini\21.Confronto_modelloSSpace_ALPHA_constant.png'])
+% apparentemente sembrano meglio quelle filtrate rispetto a quelle
+% smussate, anche se non prendono il picco del lockdown
+
+R2_flt2_alph_const = 1 - mean(e2_flt.^2) / var(yy)
+R2_smo2_alph_const = 1 - mean(e2_smo.^2) / var(yy)
+
+% Analisi emissioni con approccio state-space (MODELLO DINAMICO)
+% Modello 2: Regressione con coefficiente angolare tempo-variante e
+% intercetta tempo-variante (alpha varia e beta varia)
+%%% Setting del modello
+m2 = ssm(@(params)tvp_alpha_beta(params,xx,lm.Coefficients.Estimate(1),lm.Coefficients.Estimate(2)));
+% valori iniziali di [log(B1) , log(B2) , log(D)]
+params0 = [0.10,log(var(lm.Residuals.Raw)),log(var(lm.Residuals.Raw))];
 %%% Stima MLE dei parametri
 disp('Stima')
 mhat2 = estimate(m2,yy,params0);
-% all'ultimo istante t la costante è x(1) 416.46 e il coefficiente angolare è x(2)  -0.005
+% all'ultimo istante t la costante è x(1) 383,35 e il coefficiente angolare
+% è x(2)  0.054
+
 
 % Filtraggio degli stati
 xfilter2 = filter(mhat2,yy);
@@ -900,13 +852,16 @@ mean(e2_smo)
 var(e2_smo)
 
 %%% Plot della serie originale, filtrata e smussata
-figure(4)
+f22 = figure('Position',[100,100,1250,675])
 plot(T11.Rif_Mese, yy)
 hold on
 plot(T11.Rif_Mese, y2_flt)
 plot(T11.Rif_Mese, y2_smo) 
 legend('Emissioni osservate','Emissioni filtrate','Emissioni smoothed')
-title('Emissioni stimate con modello State Space con slope tempo-variante con intercetta costante')
+title('Emissioni stimate con modello State Space con slope tempo-variante con intercetta tempo-variante')
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+saveas(f22,[pwd '\immagini\22.Confronto_modelloSSpace_ALPHA_BETA_variab.png'])
 % apparentemente sembrano meglio quelle filtrate rispetto a quelle
 % smussate, anche se non prendono il picco del lockdown
 
@@ -917,16 +872,19 @@ R2_stat_QUADR = lm2.Rsquared.Adjusted                    %se l'obiettivo è il f
 R2_flt2 = 1 - mean(e2_flt.^2) / var(yy)
 R2_smo2 = 1 - mean(e2_smo.^2) / var(yy)
 
-% Plot
-figure(6)
+% Plot CONFRONTO MODELLO STATICO E DINAMICO migliore
+f23 = figure('Position',[100,100,1250,675])
 plot(T11.Rif_Mese, yy)
 hold on
 plot(T11.Rif_Mese, lm2.Fitted)  
 plot(T11.Rif_Mese, y2_flt)
 legend('Emissioni osservate','Emiss modello quadratico','Emissioni filtrata')
 title('Emissioni stimate con modello statico e modello dinamico')
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+saveas(f23,[pwd '\immagini\23.Confronto_modello_opt_STATICOvsDINAMICO.png'])
 
-%%% analisi residui sul modello migliore (modello quadratico)
+%%% analisi residui sul modello statico migliore (modello quadratico)
 %%% Adattamento del modello
 lm2.Rsquared;
 %%% Valori fittati dal modello
@@ -936,7 +894,7 @@ res_quadrat_hdd = lm2.Residuals.Raw;
 
 %%%Analisi dei residui 
 % Diagnostiche sui residui: normalità
-f24 = figure()
+f24 = figure('Position',[100,100,1250,675])
 set(f24,'position',[100,100,1250,675]);
 subplot(1,2,1)
 histfit(res_quadrat_hdd)
@@ -952,11 +910,11 @@ h1.Color = 'black';
 h1.LineWidth = 2;
 xlabel('Valori fittati'); 
 ylabel('Residui di regressione');
-saveas(f24,[pwd '\immagini\24.Residui_Regr_hdd.png'])
+saveas(f24,[pwd '\immagini\24.Residui_Regr_hdd_quadrato.png'])
 
 % Indici normalità residui
-skewness(res_quadrat_hdd)    
-kurtosis(res_quadrat_hdd)                                                         %abbastanza vicini alla normalità
+skewness(res_quadrat_hdd)                                                         % -1.1
+kurtosis(res_quadrat_hdd)                                                         % 5.36 --> non sono normali
 % Test normalità residui
 [h,p,jbstat,critval] = jbtest(res_quadrat_hdd, 0.05)                              % pv = 0 --> non normalità
 [h,p,jbstat,critval] = jbtest(res_quadrat_hdd, 0.01)                              % pv = 0 --> non normalità
@@ -964,14 +922,12 @@ kurtosis(res_quadrat_hdd)                                                       
 %I test ci permettono di affermare che la distribuzione non è normale (3/3)
 
 %Test di engle per l'eteroschedaticità
-[h,pValue,stat,cValue] = archtest(res_quadrat_hdd)
-% i residui della regressione con HDD^2 sono eteroschedastici.
+[h,pValue,stat,cValue] = archtest(res_quadrat_hdd)                                % i residui della regressione con HDD^2 sono eteroschedastici.
 
 %%% Modellazione residui.
 res_quadrat_hdd2 = res_quadrat_hdd.^2;
-
 %%%Autocorrelazione totale e parziale dei residui (E)
-figure(1)
+f25 = figure('Position',[100,100,1250,675])
 subplot(2,2,1)
 autocorr(res_quadrat_hdd,24)
 title('ACF residui filtro')
@@ -984,11 +940,12 @@ title('ACF residui filtro^2')
 subplot(2,2,4)
 parcorr(res_quadrat_hdd2,24)
 title('PACF residui filtro^2')
+saveas(f25,[pwd '\immagini\25.Autocorr_norm_e_quadr_Regr_hdd_quadrato.png'])
 
 % Residui risultano autocorrelati --> Whitening
 % Residui al quadrato risultano autocorrelati --> GARCH
 
-%%% Modellazione dei residui per eliminare autocorrelazione
+%%% Modellazione dei residui per eliminare autocorrelazione con ARMA
 arma2 = arima(3,0,5);
 aux_arma2 = estimate(arma2,res_quadrat_hdd);
 % Residui del filtro 'depurati' dalla autocorrelazione
@@ -997,7 +954,7 @@ res_k2 = infer(aux_arma2, res_quadrat_hdd,'Y0',res_quadrat_hdd(1:8));
 res2_k2 = res_k2.^2;
 
 % Autocorrelazione totale e parziale dei residui depurati e dei residui depurati al quadrato
-%f18 = figure('Position',[100,100,1250,675])
+f26 = figure('Position',[100,100,1250,675])
 subplot(2,2,1)
 autocorr(res_k2)
 title('ACF residui')
@@ -1010,29 +967,30 @@ title('ACF residui filtro^2')
 subplot(2,2,4)
 parcorr(res2_k2,24)
 title('PACF residui filtro^2')
-%saveas(f18,[pwd '\immagini\18.ACF_PACF_residui_modellati.png'])
+saveas(f26,[pwd '\immagini\26.Autocorr_norm_e_quadr_Regr_hdd_quadrato_dopo_ARMA.png'])
 
 % Sono molto meno autocorrelati sia ACF che PACF nei residui ordinari.
 % Proviamo a modellare i residui al quadrato con GARCH
 
 %Modellazione dell'eteroschedasticità
-%ARCH(1) = GARCH(0,2)    %solo componente autoregressiva
+%ARCH(2) = GARCH(0,2)    %solo componente autoregressiva
 m0 = garch(0,2)
 [mhat,covM,logL] = estimate(m0,res2_k2);
-condVhat = infer(mhat,res2_k2);              %estraggo residui condizionati ossia e^(2).
+condVhat = infer(mhat,res2_k2);                      %estraggo residui condizionati ossia e^(2).
 condVol = sqrt(condVhat);                            %conditional volatility
 % AIC e BIC
 n = 139;
 [a,b] = aicbic(logL,mhat.P+mhat.Q,n)
 % Plot dei valori fittati
-figure
+f27 = figure('Position',[100,100,1250,675])
 plot(T11.Rif_Mese,res2_k2)
 hold on;
 plot(T11.Rif_Mese,condVol)
 title('Residui e inferred conditional volatility con GARCH(0,1)')
-xlabel('Time')
-legend('Prices','Estim. cond. volatility','Location','NorthEast')
+xlabel('Tempo [Mesi]') 
+legend('Quantità emessa','Estim. cond. volatility','Location','NorthEast')
 hold off;
+saveas(f27,[pwd '\immagini\27.Garch(0,2).png'])
 
 %%% Standardized residuals
 std_res = res2_k2 ./ condVol;
@@ -1060,55 +1018,52 @@ subplot(2,2,3)
 autocorr(std_res2)
 subplot(2,2,4)
 parcorr(std_res2)
-% I residui al quadrato presentano ancora autocorrelazione ma non
+% I residui al quadrato presentano ancora autocorrelazione parziale ma non
 % importante come nel caso precedente.
 
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%% DOMANDA 4 --> Influenza delle emissioni sulle anomalie del riscaldamento %%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%(passaggio al dataset annuale)
 
 %%Correlazione su dati annuali
-T1K = T1([1:59],:);
-tt3=corr(T1K.AnomalieSulRiscaldamento, T1K.TotalEnergyCO2EmissionsUSA) %corr=0.823
+%T1K = T1([1:59],:);
+tt3=corr(T1.AnomalieSulRiscaldamento, T1.TotalEnergyCO2EmissionsUSA)      %corr=0.740
 
 %regressione semplice
-mhat = fitlm(T1K,'ResponseVar','TotalEnergyCO2EmissionsUSA','PredictorVars','AnomalieSulRiscaldamento')   
+mhat = fitlm(T1,'ResponseVar','AnomalieSulRiscaldamento','PredictorVars','TotalEnergyCO2EmissionsUSA')   
 %%% Coefficienti stimati
-mhat.Coefficients
-% R-squared: 0.686
-
+mhat.Coefficients              
 %%% Significatività complessiva del modello
 anova(mhat,'summary')
-
-%Confronto dati veri e stimati
-f70 = figure('Position',[100,100,1250,675])
-plot(T1K.Years,T1K.TotalEnergyCO2EmissionsUSA)
-hold on
-plot(T1K.Years, mhat.Fitted)
-hold off
-title('Emissioni C0_2 reali vs stimate (fitting lineare una variabile)') 
-xlabel('Tempo [Anni]')
-ylabel('Quantità emessa [Mln di tonnellate]')
-legend('Emissioni di CO2 dataset','Emissioni di C02 stimati')
-%saveas(f7,[pwd '\immagini\07.VenditeAuto_realeVSstimata_Regr_Sempl.png'])
-
 %%% Adattamento del modello
-mhat.Rsquared
-% Il modello è in grado di spiegare il 55% della variabilità complessiva di Y
+mhat.Rsquared                       % R-squared: 0.548
+% Il modello è in grado di spiegare il 54,8% della variabilità complessiva di Y
 %%% Valori fittati dal modello: yhat_t
 fit70 = mhat.Fitted             
 %%% Residui di regressione: y_t - yhat_t
 res70 = mhat.Residuals.Raw
 
+%Confronto dati veri e stimati
+f28 = figure('Position',[100,100,1250,675])
+plot(T1.Years,T1.AnomalieSulRiscaldamento)
+hold on
+plot(T1.Years, mhat.Fitted)
+hold off
+title('Anomalie del riscaldamento reali vs stimate (fitting lineare una variabile)') 
+xlabel('Tempo [Anni]')
+ylabel('Anomalie Riscaldamento')
+legend('Anomalie Riscaldamento dataset','Anomalie Riscaldamento stimati')
+saveas(f28,[pwd '\immagini\28.Confronto_dati_veri_stimati_annuale_Regress_semplice.png'])
+
 %%%Analisi dei residui 
 % Diagnostiche sui residui: normalità
-f70a = figure()
-set(f70a,'position',[100,100,1250,675]);
+f29 = figure('Position',[100,100,1250,675])
 subplot(1,2,1)
 histfit(res70)
 title('Distribuzione dei residui di regressione')
-xlabel('Quantità emessa [Mln di tonnellate]') 
+xlabel('Anomalie Riscaldamento') 
 ylabel('Conteggio')
 
 % Diagnostiche sui residui: incorrelazione tra fittati e residui
@@ -1120,138 +1075,71 @@ h1.LineWidth = 2;
 xlabel('Valori fittati'); 
 ylabel('Residui di regressione');
 %text(30,0.5,sprintf('rho = %0.3f',round(corr(res2,fit2),3)))
-%saveas(f10a,[pwd '\immagini\10a.Residui_Regr_Mul_EmissioneC02.png'])
+saveas(f29,[pwd '\immagini\29.Residui_annuale_Regress_semplice.png'])
 
 % Indici normalità residui
 skewness(res70)    
-kurtosis(res70)                                                         %abbastanza vicini alla normalità
+kurtosis(res70)                                                         %non molto normali
 % Test normalità residui
-[h,p,jbstat,critval] = jbtest(res70, 0.05)                              % pv = 0.0372 --> non normalità
-[h,p,jbstat,critval] = jbtest(res70, 0.01)                              % pv = 0.0372 --> normalità
-[h,p,dstat,critval] = lillietest(res70,'Alpha',0.05)                    % pv = 0.0086 --> non normalità
-[h3,p3,ci3,stats3] = ttest(res70)                                       % perfettamente normale
+[h,p,jbstat,critval] = jbtest(res70, 0.05)                              % pv = 0.0087 --> non sono normalità
+[h,p,jbstat,critval] = jbtest(res70, 0.01)                              % pv = 0.0087 --> non normalità
+[h,p,dstat,critval] = lillietest(res70,'Alpha',0.05)                    % pv = 0.0825 --> non normalità
+[h3,p3,ci3,stats3] = ttest(res70)                                       % pnormale
+
 
 %Regressione lineare MULTIPLA: y_t = beta0 + beta1*x_t + epsilon_t
 mhat = fitlm(T1,'ResponseVar','AnomalieSulRiscaldamento','PredictorVars',{'TotalEnergyCO2EmissionsUSA','TotalEnergyCO2EmissionChina','TotalEnergyCO2EmissionRussia'})   
 %%% Coefficienti stimati
 mhat.Coefficients
-% Intercetta significativa ad ogni livello di significatività (pv < 0.01).
-% Anomalie sul riscaldamento significative ad ogni livello di
-% significatività (pv < 0.01).
-% R-squared: 0.548, modello abbastanza significativo utilizzando però solo
-% una variabile.
+mhat.Rsquared           % R-squared: 0.885
+% Il modello è in grado di spiegare il 88.5% della variabilità complessiva di Y
+%%% Valori fittati dal modello: yhat_t
+fit71 = mhat.Fitted             
+%%% Residui di regressione: y_t - yhat_t
+res71 = mhat.Residuals.Raw
 
 %%% Significatività complessiva del modello
 anova(mhat,'summary')
 
 %PLOT PER VERIFICARE CONFRONTO DATI VERI E STIMATI
-f70 = figure('Position',[100,100,1250,675])
-plot(T1.Years,T1.TotalEnergyCO2EmissionsUSA)
+f30 = figure('Position',[100,100,1250,675])
+plot(T1.Years,T1.AnomalieSulRiscaldamento)
 hold on
 plot(T1.Years, mhat.Fitted)
 hold off
 title('Emissioni C0_2 reali vs stimate (fitting lineare una variabile)') 
 xlabel('Tempo [Anni]')
-ylabel('Quantità emessa [Mln di tonnellate]')
-legend('Emissioni di CO2 dataset','Emissioni di C02 stimati')
-%saveas(f7,[pwd '\immagini\07.VenditeAuto_realeVSstimata_Regr_Sempl.png'])
+ylabel('Anomalie Riscaldamento')
+legend('Anomalie Riscaldamento dataset','Anomalie Riscaldamento stimati')
+saveas(f30,[pwd '\immagini\30.Confronto_dati_veri_stimati_annuale_Regress_multipla.png'])
 
-%%% Adattamento del modello
-mhat.Rsquared
-% Il modello è in grado di spiegare il 55% della variabilità complessiva di Y
-%%% Valori fittati dal modello: yhat_t
-fit70 = mhat.Fitted             
-%%% Residui di regressione: y_t - yhat_t
-res70 = mhat.Residuals.Raw
+
 
 %%%ANALISI dei residui 
 % Diagnostiche sui residui: normalità
-f70a = figure()
-set(f70a,'position',[100,100,1250,675]);
+f31 = figure('Position',[100,100,1250,675])
 subplot(1,2,1)
-histfit(res70)
+histfit(res71)
 title('Distribuzione dei residui di regressione')
 xlabel('Quantità emessa [Mln di tonnellate]') 
 ylabel('Conteggio')
 
 % Diagnostiche sui residui: incorrelazione tra fittati e residui
 subplot(1,2,2)
-scatter(fit70,res70)        
+scatter(fit71,res71)        
 h1 = lsline
 h1.Color = 'black';
 h1.LineWidth = 2;
 xlabel('Valori fittati'); 
 ylabel('Residui di regressione');
 %text(30,0.5,sprintf('rho = %0.3f',round(corr(res2,fit2),3)))
-%saveas(f10a,[pwd '\immagini\10a.Residui_Regr_Mul_EmissioneC02.png'])
+saveas(f31,[pwd '\immagini\31.Residui_annuale_Regress_mult.png'])
 
 % Indici normalità residui
-skewness(res70)    
-kurtosis(res70)                                                         %abbastanza vicini alla normalità
+skewness(res71)                                                         %normale
+kurtosis(res71)                                                         %non normale
 % Test normalità residui
-[h,p,jbstat,critval] = jbtest(res70, 0.05)                              % pv = 0.0372 --> non normalità
-[h,p,jbstat,critval] = jbtest(res70, 0.01)                              % pv = 0.0372 --> normalità
-[h,p,dstat,critval] = lillietest(res70,'Alpha',0.05)                    % pv = 0.0086 --> non normalità
-[h3,p3,ci3,stats3] = ttest(res70)                                       % perfettamente normale
-
-
-
-
-%%% REGRESSIONE LINEARE MULTIPLA
-% Modello log-lineare: la dipendente è logaritmica, i regressori sono
-% lineari (anni 1949-2007)
-
-T1K.HDD_QUAD = HDD.^2
-mhat7 = fitlm(T1K,'ResponseVar','TotalEnergyCO2EmissionsUSA','PredictorVars',{'HDD_QUAD','CoolingDegree_Days_UnitedStates','AnomalieSulRiscaldamento','HeatingDegree_Days_UnitedStates'})
-%%% Coefficienti stimati
-mhat7.Coefficients
-
-%confronto reali vs fitted (+ variabili)
-f9a = figure('Position',[100,100,1250,675])
-plot(T1K.Years, T1K.TotalEnergyCO2EmissionsUSA)
-hold on
-plot(T1K.Years, mhat7.Fitted)
-hold off
-title('Emssione C0_2 reali vs stimate (fitting lineare più variabili climatiche)') 
-xlabel('Tempo [Mesi]')
-ylabel('Quantità emessa [Mln di tonnellate]')
-legend('Emissioni di CO2 dataset','Emissioni di C02 stimate')
-%saveas(f9a,[pwd '\immagini\09a.Emissioni_realiVSstimate_Regr_Multipla_aggrega.png'])
-
-%%% Adattamento del modello
-mhat7.Rsquared;
-% Il modello è in grado di spiegare l'30% della variabilità complessiva di Y
-%%% Valori fittati dal modello: yhat_t
-fit7 = mhat7.Fitted;             
-%%% Residui di regressione: y_t - yhat_t
-res7 = mhat7.Residuals.Raw;
-
-%%%ANALISI dei residui 
-% Diagnostiche sui residui: normalità
-f10a = figure()
-set(f10a,'position',[100,100,1250,675]);
-subplot(1,2,1)
-histfit(res7)
-title('Distribuzione dei residui di regressione')
-xlabel('Quantità emessa [Mln di tonnellate]') 
-ylabel('Conteggio')
-
-% Diagnostiche sui residui: incorrelazione tra fittati e residui
-subplot(1,2,2)
-scatter(fit7,res7)        
-h1 = lsline
-h1.Color = 'black';
-h1.LineWidth = 2;
-xlabel('Valori fittati'); 
-ylabel('Residui di regressione');
-
-
-% Indici normalità residui
-skewness(res7)    
-kurtosis(res7)                                                         %abbastanza vicini alla normalità
-% Test normalità residui
-[h,p,jbstat,critval] = jbtest(res7, 0.05)                               % pv = 0.500 --> normalità
-[h,p,jbstat,critval] = jbtest(res7, 0.01);                              % pv = 0.500 --> normalità
-[h,p,dstat,critval] = lillietest(res7,'Alpha',0.05)                     % pv = 0.386 --> normalità
-[h3,p3,ci3,stats3] = ttest(res7);                                       % perfettamente normale
-%I test ci permettono di affermare che la distribuzione è normale (4/4)
+[h,p,jbstat,critval] = jbtest(res71, 0.05)                              % pv = 0.3219 --> normalità
+[h,p,jbstat,critval] = jbtest(res71, 0.01)                              % pv = 0.3219 --> normalità
+[h,p,dstat,critval] = lillietest(res71,'Alpha',0.05)                    % pv = 0.3441 --> normalità
+[h3,p3,ci3,stats3] = ttest(res71)                                       % perfettamente normale
