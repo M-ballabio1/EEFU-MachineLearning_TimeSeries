@@ -805,8 +805,8 @@ saveas(f21,[pwd '\immagini\21.Confronto_modelloSSpace_ALPHA_constant.png'])
 % apparentemente sembrano meglio quelle filtrate rispetto a quelle
 % smussate, anche se non prendono il picco del lockdown
 
-R2_flt2_alph_const = 1 - mean(e2_flt.^2) / var(yy)
-R2_smo2_alph_const = 1 - mean(e2_smo.^2) / var(yy)
+R2_flt2_alph_const = 1 - mean(e2_flt.^2) / var(yy)              %0.395
+R2_smo2_alph_const = 1 - mean(e2_smo.^2) / var(yy)              %0.357
 
 % Analisi emissioni con approccio state-space (MODELLO DINAMICO)
 % Modello 2: Regressione con coefficiente angolare tempo-variante e
@@ -868,8 +868,8 @@ saveas(f22,[pwd '\immagini\22.Confronto_modelloSSpace_ALPHA_BETA_variab.png'])
 %%% Confronto il modello statico con quello dinamico
 % Fitting performance
 R2_stat = lm.Rsquared.Adjusted
-R2_stat_QUADR = lm2.Rsquared.Adjusted                    %se l'obiettivo è il fitting, il modello migliore identificabile è questo
-R2_flt2 = 1 - mean(e2_flt.^2) / var(yy)
+R2_stat_QUADR = lm2.Rsquared.Adjusted                    %modello migliore statico  (0.572)
+R2_flt2 = 1 - mean(e2_flt.^2) / var(yy)                  %modello migliore dinamico (0.573)
 R2_smo2 = 1 - mean(e2_smo.^2) / var(yy)
 
 % Plot CONFRONTO MODELLO STATICO E DINAMICO migliore
