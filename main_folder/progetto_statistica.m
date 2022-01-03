@@ -588,17 +588,43 @@ fitted_test_SAR = fittedSARIMA_opt([116:end],:);
 % Analisi grafica delle autocorrelazioni dei FITTATI (RIGURDARE)
 RMSE = sqrt(mean((y_test_m - fitted_test_SAR).^2))  % Root Mean Squared Error = 21.0852
 
+%%%%% Modelli ARIMA (TROVATO CON ciclo for (togliendo componente stagionale)
+% Modello ARIMA((3,0,3)
+% y_t = alpha1*y_t-1 + Alpha12*y_t-12 + eps_t
+
+MA11 = arima(3,0,3);                                                             % AUTOREGRESSIVO DI GRADO 3, A MEDIA MOBILE DI 3
+MAS11 = estimate(MA11,y_train_m,'Display','off');
+summarize(MAS11);
+innovMA112 = infer(MAS11, y_train_m, 'Y0',y_train_m(1:6));  
+%fittedMA112 = T11.Emiss_C02_NTotE + innovMA112;
+innov_te2 = infer(MAS11, y_test_m, 'Y0',y_test_m(1:6));
+%fitted = y_train_m + innov_tr;
+new_2 = forecast(MAS11,24,y_test_m);
+fit_right3 = new_2+innov_te2;
+
+f15a = figure('Position',[100,100,1250,675])
+plot(Period_train,y_train_m)
+hold on
+plot(Period_test,y_test_m)
+plot(Period_test,fit_right2)
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Osservata train','Osservata test','Fittata con ARIMA')
+title('Serie storica osservata e fittata con ARIMA(3,0,3)')
+saveas(f15a,[pwd '\immagini\15a.Fitting_ARIMA(3,0,3).png'])
+
 %%% Grafico della serie osservata e stimata/fittata
 f16 = figure('Position',[100,100,1250,675])
 plot(T11.Rif_Mese,T11.Emiss_C02_NTotE)
 hold on
 plot(Period_test,fitted_test_SAR)
 plot(Period_test,fit_right2)
+plot(Period_test,fit_right3)
 plot(Period_test,fit_right)
 xlabel('Tempo [Mesi]') 
 ylabel('Quantità emessa [Mln di tonnellate]')
 legend('Osservata','SARIMA((1,0,1),(12,0,0))',...
-    'ARIMA(1,0,3)','AR(12)')
+    'ARIMA(2,0,2)','ARIMA(3,0,3)','AR(12)')
 title('Serie storica osservata e fittata con diversi modelli')
 saveas(f16,[pwd '\immagini\16.ConfrontoModelli.png'])
 
@@ -608,36 +634,66 @@ plot(Period_test,y_test_m,'LineWidth', 2)
 hold on
 plot(Period_test,fitted_test_SAR)
 plot(Period_test,fit_right2)
+plot(Period_test,fit_right3)
 plot(Period_test,fit_right)
 xlabel('Tempo [Mesi]') 
 ylabel('Quantità emessa [Mln di tonnellate]')
 legend('Osservata','SARIMA((1,0,1),(12,0,0))',...
-    'ARIMA(1,0,3)','AR(12)')
+    'ARIMA(2,0,2)','ARIMA(3,0,3)','AR(12)')
 title('Serie storica osservata e fittata con diversi modelli')
 saveas(f16a,[pwd '\immagini\16a.ConfrontoModelli_test.png'])
 
 %%% Analisi grafica deI residui
 f17 = figure('Position',[100,100,1250,675])
 subplot(2,2,1)      
-plot(E);
+plot(innovazioni_normalizzate);
+hold on
+yline(media_nuova,'r')
+hold off
 title('Serie storica dei residui')
 subplot(2,2,2)       
-histfit(E,20,'Normal')
+histfit(innov_te2,20,'Normal')
 title('Istogramma dei residui')
 subplot(2,2,3)       
-autocorr(E);
+autocorr(innov_te2);
 title('ACF dei residui')
 subplot(2,2,4)       
-parcorr(E);
+parcorr(innov_te2);
 title('PACF dei residui')
-saveas(f17,[pwd '\immagini\17.ACF_PACF_Sarima.png'])
+saveas(f17,[pwd '\immagini\17.ACF_PACF_ARIMA(2,0,2).png'])
+
+%normalizzazione residui per test ADF
+media_adf = mean(innov_te2)
+innovazioni_normalizzate = innov_te2-media_adf
+media_nuova = mean(innovazioni_normalizzate)
 
 % Test analitici sui residui
-[h,p,jbstat,critval] = jbtest(E)
-[h,pValue,stat,cValue] = lbqtest(E,'lags',[1,4,8,12])
-[h,p,adfstat,critval] = adftest(E)
+[h,p,jbstat,critval] = jbtest(innov_te2)                                  % i dati sono normali             
+[h,pValue,stat,cValue] = lbqtest(innov_te2,'lags',[1,6,8,12,13])          % ai ritardi 1,8,12,13 autocorrelazione
+[h,p,adfstat,critval] = adftest(innovazioni_normalizzate)                 % i residui sono stazionari
+
+%Test di engle per l'eteroschedaticità
+[h,pValue,stat,cValue] = archtest(innov_te2)
+%Accetto H0 --> %no eteroschedasticità nei residui
+
+%%% Modellazione dei residui per eliminare autocorrelazione
+arma = arima(3,2,1);
+aux_arma = estimate(arma,innov_te2);
+% Residui del filtro 'depurati' dalla autocorrelazione
+res_k = infer(aux_arma, innov_te2,'Y0',innov_te2(1:6));
+
+% Autocorrelazione totale e parziale dei residui depurati e dei residui depurati al quadrato
+f18 = figure('Position',[100,100,1250,675])
+subplot(2,2,1)
+autocorr(res_k)
+title('ACF residui')
+subplot(2,2,2)
+parcorr(res_k)
+title('PACF residui')
+saveas(f18,[pwd '\immagini\18.ACF_PACF_residui_modellati.png'])
 
 
+%{
 %%%Autocorrelazione totale e parziale dei residui (E) e dei residui al
 %%%quadrato (E2)
 E2 = E.^2;
@@ -657,36 +713,6 @@ parcorr(E2,48)
 title('PACF residui filtro^2')
 % Residui risultano autocorrelati --> Whitening
 % Residui al quadrato risultano autocorrelati --> GARCH
-
-%Test di engle per l'eteroschedaticità
-%[h,pValue,stat,cValue] = archtest(e2_flt)
-% Rigetto H0 --> se c'è presenza di eteroschedasticità nei residui del filtro
-
-%%% Pre-whitening dei residui (elimino autocorrelazione)
-arma = arima(2,0,1);
-aux_arma = estimate(arma,E2);
-% Residui del filtro 'depurati' dalla autocorrelazione
-res = infer(aux_arma, E2,'Y0',E2(1:2));
-% Residui 'depurati' al quadrato
-res2 = res.^2;
-
-% Autocorrelazione totale e parziale dei residui depurati e dei residui depurati al quadrato
-figure(1)
-subplot(2,2,1)
-autocorr(res)
-title('ACF residui')
-subplot(2,2,2)
-parcorr(res)
-title('PACF residui')
-subplot(2,2,3)
-autocorr(res2)
-title('ACF residui^2')
-subplot(2,2,4)
-parcorr(res2)
-title('PACF residui^2')
-
-% Dopo il pre-whitening, risultano autocorrelati solamente i residui al
-% quadrato, quindi possiamo applicare Garch
 
 %Modellazione dell'eteroschedasticità
 %ARCH(1) = GARCH(0,1)    %solo componente autoregressiva
@@ -783,6 +809,7 @@ autocorr(std_res2)
 subplot(2,2,4)
 parcorr(std_res2)
 % I residui standardizzati al quadrato non presentano più autocorrelazione
+%}
 
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -806,13 +833,14 @@ lm = fitlm(xx,yy);  %si usa un solo regressore R^2 = 0.201
 lm2 = fitlm(XX,yy);  %qui due regressori R^2 = 0.572
 
 %Confronto fittate lineari e fittate quadrate
-figure(1)
+f19 = figure('Position',[100,100,1250,675])
 plot(T11.Rif_Mese, yy)
 hold on
 plot(T11.Rif_Mese, lm.Fitted)
 plot(T11.Rif_Mese, lm2.Fitted)
 legend('Emissioni osservate','Emissioni fittate lineari','Emissioni fittate quadratiche')
 title('Emissioni stimate con regressione lineare')
+saveas(f19,[pwd '\immagini\19.Confronti_modelli_statici_con_HDD.png'])
 
 %confronto regressioni
 figure(2)
@@ -831,7 +859,7 @@ sTable = array2table(tt,'RowNames',rowNames,'VariableNames',colNames)
 
 tt1=corr(T11.Emiss_C02_NTotE,xx2) %corr=0.5951 --> correlazione più forte con HDD^2
 
-% Analisi emissioni con approccio state-space
+% Analisi emissioni con approccio state-space (MODELLO DINAMICO)
 % Modello 2: Regressione con coefficiente angolare tempo-variante e intercetta statica
 %%% Setting del modello
 m2 = ssm(@(params)tvp_beta_alphaconstant(params,xx,lm.Coefficients.Estimate(1),lm.Coefficients.Estimate(2)));
@@ -882,30 +910,12 @@ title('Emissioni stimate con modello State Space con slope tempo-variante con in
 % apparentemente sembrano meglio quelle filtrate rispetto a quelle
 % smussate, anche se non prendono il picco del lockdown
 
-%%% Previsione un passo in avanti degli stati e di y
-% Ad ogni tempo t, il miglior previsore lineare è il valore precedente
-alpha2.forecast = [nan; alpha2.flt(1:end-1)];
-beta2.forecast = [nan; beta2.flt(1:end-1)];
-y2_frc = alpha2.forecast + beta2.forecast.*xx;   %combino le due e creo la serie forecasting une step ahed di y 
-e2_frc = yy - y2_frc;                            %errore di previsione
-nanmean(e2_frc)
-nanvar(e2_frc)
-
-%%% Plot della serie originale e previsione un-passo-in-avanti
-figure(5)
-plot(yy)
-hold on
-plot(y2_frc);
-title('Previsione un passo in avanti: state-space con slope tempo-variante con intercetta costante')
-legend('Valori osservati','One-step-ahead KF')
-
 %%% Confronto il modello statico con quello dinamico
 % Fitting performance
 R2_stat = lm.Rsquared.Adjusted
 R2_stat_QUADR = lm2.Rsquared.Adjusted                    %se l'obiettivo è il fitting, il modello migliore identificabile è questo
 R2_flt2 = 1 - mean(e2_flt.^2) / var(yy)
 R2_smo2 = 1 - mean(e2_smo.^2) / var(yy)
-R2_frc2 = 1 - nanmean(e2_frc.^2) / var(yy)
 
 % Plot
 figure(6)
@@ -916,6 +926,143 @@ plot(T11.Rif_Mese, y2_flt)
 legend('Emissioni osservate','Emiss modello quadratico','Emissioni filtrata')
 title('Emissioni stimate con modello statico e modello dinamico')
 
+%%% analisi residui sul modello migliore (modello quadratico)
+%%% Adattamento del modello
+lm2.Rsquared;
+%%% Valori fittati dal modello
+fit_quadrat_hdd = lm2.Fitted;             
+%%% Residui di regressione
+res_quadrat_hdd = lm2.Residuals.Raw;
+
+%%%Analisi dei residui 
+% Diagnostiche sui residui: normalità
+f24 = figure()
+set(f24,'position',[100,100,1250,675]);
+subplot(1,2,1)
+histfit(res_quadrat_hdd)
+title('Distribuzione dei residui di regressione')
+xlabel('Quantità emessa [Mln di tonnellate]') 
+ylabel('Conteggio')
+
+% Diagnostiche sui residui: incorrelazione tra fittati e residui
+subplot(1,2,2)
+scatter(fit_quadrat_hdd,res_quadrat_hdd)        
+h1 = lsline
+h1.Color = 'black';
+h1.LineWidth = 2;
+xlabel('Valori fittati'); 
+ylabel('Residui di regressione');
+saveas(f24,[pwd '\immagini\24.Residui_Regr_hdd.png'])
+
+% Indici normalità residui
+skewness(res_quadrat_hdd)    
+kurtosis(res_quadrat_hdd)                                                         %abbastanza vicini alla normalità
+% Test normalità residui
+[h,p,jbstat,critval] = jbtest(res_quadrat_hdd, 0.05)                              % pv = 0 --> non normalità
+[h,p,jbstat,critval] = jbtest(res_quadrat_hdd, 0.01)                              % pv = 0 --> non normalità
+[h,p,dstat,critval] = lillietest(res_quadrat_hdd,'Alpha',0.05)                    % pv = 0.026 --> non normalità
+%I test ci permettono di affermare che la distribuzione non è normale (3/3)
+
+%Test di engle per l'eteroschedaticità
+[h,pValue,stat,cValue] = archtest(res_quadrat_hdd)
+% i residui della regressione con HDD^2 sono eteroschedastici.
+
+%%% Modellazione residui.
+res_quadrat_hdd2 = res_quadrat_hdd.^2;
+
+%%%Autocorrelazione totale e parziale dei residui (E)
+figure(1)
+subplot(2,2,1)
+autocorr(res_quadrat_hdd,24)
+title('ACF residui filtro')
+subplot(2,2,2)
+parcorr(res_quadrat_hdd,24)
+title('PACF residui filtro')
+subplot(2,2,3)
+autocorr(res_quadrat_hdd2,24)
+title('ACF residui filtro^2')
+subplot(2,2,4)
+parcorr(res_quadrat_hdd2,24)
+title('PACF residui filtro^2')
+
+% Residui risultano autocorrelati --> Whitening
+% Residui al quadrato risultano autocorrelati --> GARCH
+
+%%% Modellazione dei residui per eliminare autocorrelazione
+arma2 = arima(3,0,5);
+aux_arma2 = estimate(arma2,res_quadrat_hdd);
+% Residui del filtro 'depurati' dalla autocorrelazione
+res_k2 = infer(aux_arma2, res_quadrat_hdd,'Y0',res_quadrat_hdd(1:8));
+% Residui 'depurati' al quadrato
+res2_k2 = res_k2.^2;
+
+% Autocorrelazione totale e parziale dei residui depurati e dei residui depurati al quadrato
+%f18 = figure('Position',[100,100,1250,675])
+subplot(2,2,1)
+autocorr(res_k2)
+title('ACF residui')
+subplot(2,2,2)
+parcorr(res_k2)
+title('PACF residui')
+subplot(2,2,3)
+autocorr(res2_k2,24)
+title('ACF residui filtro^2')
+subplot(2,2,4)
+parcorr(res2_k2,24)
+title('PACF residui filtro^2')
+%saveas(f18,[pwd '\immagini\18.ACF_PACF_residui_modellati.png'])
+
+% Sono molto meno autocorrelati sia ACF che PACF nei residui ordinari.
+% Proviamo a modellare i residui al quadrato con GARCH
+
+%Modellazione dell'eteroschedasticità
+%ARCH(1) = GARCH(0,2)    %solo componente autoregressiva
+m0 = garch(0,2)
+[mhat,covM,logL] = estimate(m0,res2_k2);
+condVhat = infer(mhat,res2_k2);              %estraggo residui condizionati ossia e^(2).
+condVol = sqrt(condVhat);                            %conditional volatility
+% AIC e BIC
+n = 139;
+[a,b] = aicbic(logL,mhat.P+mhat.Q,n)
+% Plot dei valori fittati
+figure
+plot(T11.Rif_Mese,res2_k2)
+hold on;
+plot(T11.Rif_Mese,condVol)
+title('Residui e inferred conditional volatility con GARCH(0,1)')
+xlabel('Time')
+legend('Prices','Estim. cond. volatility','Location','NorthEast')
+hold off;
+
+%%% Standardized residuals
+std_res = res2_k2 ./ condVol;
+std_res2 = std_res .^ 2;
+
+%%% Diagnostiche sui residui standardizzati
+figure
+subplot(2,2,1)
+plot(std_res)
+title('Standardized Residuals')
+subplot(2,2,2)
+histogram(std_res,10)
+subplot(2,2,3)
+autocorr(std_res)
+subplot(2,2,4)
+parcorr(std_res)
+
+figure
+subplot(2,2,1)
+plot(std_res2)
+title('Standardized Residuals Squared')
+subplot(2,2,2)
+histogram(std_res2,10)
+subplot(2,2,3)
+autocorr(std_res2)
+subplot(2,2,4)
+parcorr(std_res2)
+% I residui al quadrato presentano ancora autocorrelazione ma non
+% importante come nel caso precedente.
+
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%% DOMANDA 4 --> Influenza delle emissioni sulle anomalie del riscaldamento %%%%%%%%%%
@@ -924,6 +1071,8 @@ title('Emissioni stimate con modello statico e modello dinamico')
 %%Correlazione su dati annuali
 T1K = T1([1:59],:);
 tt3=corr(T1K.AnomalieSulRiscaldamento, T1K.TotalEnergyCO2EmissionsUSA) %corr=0.823
+
+%regressione semplice
 mhat = fitlm(T1K,'ResponseVar','TotalEnergyCO2EmissionsUSA','PredictorVars','AnomalieSulRiscaldamento')   
 %%% Coefficienti stimati
 mhat.Coefficients
@@ -934,9 +1083,9 @@ anova(mhat,'summary')
 
 %Confronto dati veri e stimati
 f70 = figure('Position',[100,100,1250,675])
-plot(T1.Years,T1.TotalEnergyCO2EmissionsUSA)
+plot(T1K.Years,T1K.TotalEnergyCO2EmissionsUSA)
 hold on
-plot(T1.Years, mhat.Fitted)
+plot(T1K.Years, mhat.Fitted)
 hold off
 title('Emissioni C0_2 reali vs stimate (fitting lineare una variabile)') 
 xlabel('Tempo [Anni]')
@@ -981,6 +1130,70 @@ kurtosis(res70)                                                         %abbasta
 [h,p,jbstat,critval] = jbtest(res70, 0.01)                              % pv = 0.0372 --> normalità
 [h,p,dstat,critval] = lillietest(res70,'Alpha',0.05)                    % pv = 0.0086 --> non normalità
 [h3,p3,ci3,stats3] = ttest(res70)                                       % perfettamente normale
+
+%Regressione lineare MULTIPLA: y_t = beta0 + beta1*x_t + epsilon_t
+mhat = fitlm(T1,'ResponseVar','AnomalieSulRiscaldamento','PredictorVars',{'TotalEnergyCO2EmissionsUSA','TotalEnergyCO2EmissionChina','TotalEnergyCO2EmissionRussia'})   
+%%% Coefficienti stimati
+mhat.Coefficients
+% Intercetta significativa ad ogni livello di significatività (pv < 0.01).
+% Anomalie sul riscaldamento significative ad ogni livello di
+% significatività (pv < 0.01).
+% R-squared: 0.548, modello abbastanza significativo utilizzando però solo
+% una variabile.
+
+%%% Significatività complessiva del modello
+anova(mhat,'summary')
+
+%PLOT PER VERIFICARE CONFRONTO DATI VERI E STIMATI
+f70 = figure('Position',[100,100,1250,675])
+plot(T1.Years,T1.TotalEnergyCO2EmissionsUSA)
+hold on
+plot(T1.Years, mhat.Fitted)
+hold off
+title('Emissioni C0_2 reali vs stimate (fitting lineare una variabile)') 
+xlabel('Tempo [Anni]')
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Emissioni di CO2 dataset','Emissioni di C02 stimati')
+%saveas(f7,[pwd '\immagini\07.VenditeAuto_realeVSstimata_Regr_Sempl.png'])
+
+%%% Adattamento del modello
+mhat.Rsquared
+% Il modello è in grado di spiegare il 55% della variabilità complessiva di Y
+%%% Valori fittati dal modello: yhat_t
+fit70 = mhat.Fitted             
+%%% Residui di regressione: y_t - yhat_t
+res70 = mhat.Residuals.Raw
+
+%%%ANALISI dei residui 
+% Diagnostiche sui residui: normalità
+f70a = figure()
+set(f70a,'position',[100,100,1250,675]);
+subplot(1,2,1)
+histfit(res70)
+title('Distribuzione dei residui di regressione')
+xlabel('Quantità emessa [Mln di tonnellate]') 
+ylabel('Conteggio')
+
+% Diagnostiche sui residui: incorrelazione tra fittati e residui
+subplot(1,2,2)
+scatter(fit70,res70)        
+h1 = lsline
+h1.Color = 'black';
+h1.LineWidth = 2;
+xlabel('Valori fittati'); 
+ylabel('Residui di regressione');
+%text(30,0.5,sprintf('rho = %0.3f',round(corr(res2,fit2),3)))
+%saveas(f10a,[pwd '\immagini\10a.Residui_Regr_Mul_EmissioneC02.png'])
+
+% Indici normalità residui
+skewness(res70)    
+kurtosis(res70)                                                         %abbastanza vicini alla normalità
+% Test normalità residui
+[h,p,jbstat,critval] = jbtest(res70, 0.05)                              % pv = 0.0372 --> non normalità
+[h,p,jbstat,critval] = jbtest(res70, 0.01)                              % pv = 0.0372 --> normalità
+[h,p,dstat,critval] = lillietest(res70,'Alpha',0.05)                    % pv = 0.0086 --> non normalità
+[h3,p3,ci3,stats3] = ttest(res70)                                       % perfettamente normale
+
 
 
 
@@ -1041,4 +1254,4 @@ kurtosis(res7)                                                         %abbastan
 [h,p,jbstat,critval] = jbtest(res7, 0.01);                              % pv = 0.500 --> normalità
 [h,p,dstat,critval] = lillietest(res7,'Alpha',0.05)                     % pv = 0.386 --> normalità
 [h3,p3,ci3,stats3] = ttest(res7);                                       % perfettamente normale
-%I test ci permettono di affermare che la distribuzione è normale (4/4) 
+%I test ci permettono di affermare che la distribuzione è normale (4/4)
