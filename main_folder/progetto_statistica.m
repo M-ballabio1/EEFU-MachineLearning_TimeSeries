@@ -823,40 +823,40 @@ mhat2 = estimate(m2,yy,params0);
 
 
 % Filtraggio degli stati
-xfilter2 = filter(mhat2,yy);
-alpha2.flt = xfilter2(:,1);                           
-plot(alpha2.flt) 
+xfilter3 = filter(mhat2,yy);
+alpha3.flt = xfilter3(:,1);                           
+plot(alpha3.flt) 
 %La stima del coefficiente tende a stabilizzarsi e a convergere
-beta2.flt = xfilter2(:,2);
-plot(beta2.flt) 
+beta3.flt = xfilter3(:,2);
+plot(beta3.flt) 
 %cattura tutto l'andamento della serie storica in quanto tempovariabile 
 
 %Smoothing degli stati
-xsmooth2 = smooth(mhat2,yy);
-alpha2.smo = xsmooth2(:,1);
-plot(alpha2.smo)
+xsmooth3 = smooth(mhat2,yy);
+alpha3.smo = xsmooth3(:,1);
+plot(alpha3.smo)
 %Lo smoother è il valore ultimo ed è sempre costante
-beta2.smo = xsmooth2(:,2);
-plot(beta2.smo)
+beta3.smo = xsmooth3(:,2);
+plot(beta3.smo)
 
 %%% Filtraggio e lisciamento dei valori di y
 % valori filtrati di y
-y2_flt = alpha2.flt + beta2.flt.*xx;
-e2_flt = yy - y2_flt;
-mean(e2_flt)
-var(e2_flt)
+y3_flt = alpha3.flt + beta3.flt.*xx;
+e3_flt = yy - y3_flt;
+mean(e3_flt)
+var(e3_flt)
 % valori lisciati di y
-y2_smo = alpha2.smo + beta2.smo.*xx;
-e2_smo = yy - y2_smo;
-mean(e2_smo)
-var(e2_smo)
+y3_smo = alpha3.smo + beta3.smo.*xx;
+e3_smo = yy - y3_smo;
+mean(e3_smo)
+var(e3_smo)
 
 %%% Plot della serie originale, filtrata e smussata
 f22 = figure('Position',[100,100,1250,675])
 plot(T11.Rif_Mese, yy)
 hold on
-plot(T11.Rif_Mese, y2_flt)
-plot(T11.Rif_Mese, y2_smo) 
+plot(T11.Rif_Mese, y3_flt)
+plot(T11.Rif_Mese, y3_smo) 
 legend('Emissioni osservate','Emissioni filtrate','Emissioni smoothed')
 title('Emissioni stimate con modello State Space con slope tempo-variante con intercetta tempo-variante')
 xlabel('Tempo [Mesi]') 
@@ -869,8 +869,8 @@ saveas(f22,[pwd '\immagini\22.Confronto_modelloSSpace_ALPHA_BETA_variab.png'])
 % Fitting performance
 R2_stat = lm.Rsquared.Adjusted
 R2_stat_QUADR = lm2.Rsquared.Adjusted                    %modello migliore statico  (0.572)
-R2_flt2 = 1 - mean(e2_flt.^2) / var(yy)                  %modello migliore dinamico (0.573)
-R2_smo2 = 1 - mean(e2_smo.^2) / var(yy)
+R2_flt2 = 1 - mean(e3_flt.^2) / var(yy)                  %modello migliore dinamico (0.573)
+R2_smo2 = 1 - mean(e3_smo.^2) / var(yy)
 
 % Plot CONFRONTO MODELLO STATICO E DINAMICO migliore
 f23 = figure('Position',[100,100,1250,675])
@@ -883,6 +883,21 @@ title('Emissioni stimate con modello statico e modello dinamico')
 xlabel('Tempo [Mesi]') 
 ylabel('Quantità emessa [Mln di tonnellate]')
 saveas(f23,[pwd '\immagini\23.Confronto_modello_opt_STATICOvsDINAMICO.png'])
+
+%MODELLO composizione di parte regressione statica+dinamica
+% (primi 9 mesi statico + 2 mesi dinamico [per catturare covid]
+primi_parte = lm2.Fitted
+primi_parte1 = primi_parte([1:115],:);
+secod_parte = y3_flt([116:end],:);
+
+t5_comp = [primi_parte1;secod_parte]
+e5_comp = yy - t5_comp;
+mean(e5_comp)
+var(e5_comp)
+
+R2_composizione = 1 - mean(e5_comp.^2) / var(yy)   %ottiene il migliore R^2 in assoluto.
+
+
 
 %%% analisi residui sul modello statico migliore (modello quadratico)
 %%% Adattamento del modello
