@@ -268,7 +268,7 @@ h1.LineWidth = 2;
 xlabel('Valori fittati'); 
 ylabel('Residui di regressione');
 %text(30,0.5,sprintf('rho = %0.3f',round(corr(res2,fit2),3)))
-saveas(f10a,[pwd '\immagini\10a.Residui_Regr_Mul_EmissioneC02.png'])
+saveas(f10a,[pwd '\immagini\10a.Residui_Regr_Mul_EmissioneC02_aggregati.png'])
 
 % Indici normalità residui
 skewness(res2)    
@@ -281,9 +281,9 @@ kurtosis(res2)                                                         %abbastan
 %I test ci permettono di affermare che la distribuzione è normale (4/4) 
 
 % 7.2 Produzione e consumi singoli
-mhat2 = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars',{'Produz_Eolica','Produz_Carbone','Consum_CFosTras','Produz_Biomasse','Consum_Carb_TOT'})
+mhat9 = fitlm(T11,'ResponseVar','Emiss_C02_NTotE','PredictorVars',{'Produz_Eolica','Produz_Carbone','Consum_CFosTras','Produz_Biomasse','Consum_Carb_TOT'})
 %%% Coefficienti stimati
-mhat2.Coefficients
+mhat9.Coefficients
 % Intercetta significativa (pv < 0.01)
 % Altre variabili significative (pv < 0.01) --> Consum. Carb tot la più
 % significativa
@@ -293,50 +293,50 @@ mhat2.Coefficients
 f9 = figure('Position',[100,100,1250,675])
 plot(T11.Rif_Mese, T11.Emiss_C02_NTotE)
 hold on
-plot(T11.Rif_Mese, mhat2.Fitted)
+plot(T11.Rif_Mese, mhat9.Fitted)
 hold off
 title('Emssione C0_2 reali vs stimate (fitting lineare più variabili)') 
 xlabel('Tempo [Mesi]')
 ylabel('Quantità emessa [Mln di tonnellate]')
 legend('Emissioni di CO2 dataset','Emissioni di C02 stimate')
-saveas(f9,[pwd '\immagini\09.Emissioni_realiVSstimate_Regr_Multipla.png'])
+saveas(f9,[pwd '\immagini\09.Emissioni_realiVSstimate_Regr_Multipla_singoli.png'])
 
-anova(mhat2,'summary')
+anova(mhat9,'summary')
 %%% Adattamento del modello
-mhat2.Rsquared;
+mhat9.Rsquared;
 %%% Valori fittati dal modello
-fit2 = mhat2.Fitted;             
+fit9 = mhat9.Fitted;             
 %%% Residui di regressione
-res2 = mhat2.Residuals.Raw;
+res9 = mhat9.Residuals.Raw;
 
 %%%Analisi dei residui 
 % Diagnostiche sui residui: normalità
 f10 = figure()
 set(f10,'position',[100,100,1250,675]);
 subplot(1,2,1)
-histfit(res2)
+histfit(res9)
 title('Distribuzione dei residui di regressione')
 xlabel('Quantità emessa [Mln di tonnellate]') 
 ylabel('Conteggio')
 
 % Diagnostiche sui residui: incorrelazione tra fittati e residui
 subplot(1,2,2)
-scatter(fit2,res2)        
+scatter(fit9,res9)        
 h1 = lsline
 h1.Color = 'black';
 h1.LineWidth = 2;
 xlabel('Valori fittati'); 
 ylabel('Residui di regressione');
-saveas(f10,[pwd '\immagini\10.Residui_Regr_Mul_EmissioneC02.png'])
+saveas(f10,[pwd '\immagini\10.Residui_Regr_Mul_EmissioneC02_singoli.png'])
 
 % Indici normalità residui
-skewness(res2)    
-kurtosis(res2)                                                         %abbastanza vicini alla normalità
+skewness(res9)    
+kurtosis(res9)                                                         %abbastanza vicini alla normalità
 % Test normalità residui
-[h,p,jbstat,critval] = jbtest(res2, 0.05)                              % pv = 0.2678 --> normalità
-[h,p,jbstat,critval] = jbtest(res2, 0.01)                              % pv = 0.2678 --> normalità
-[h,p,dstat,critval] = lillietest(res2,'Alpha',0.05)                    % pv = 0.2249 --> normalità
-[h3,p3,ci3,stats3] = ttest(res2)                                       % perfettamente normale
+[h,p,jbstat,critval] = jbtest(res9, 0.05)                              % pv = 0.2678 --> normalità
+[h,p,jbstat,critval] = jbtest(res9, 0.01)                              % pv = 0.2678 --> normalità
+[h,p,dstat,critval] = lillietest(res9,'Alpha',0.05)                    % pv = 0.2249 --> normalità
+[h3,p3,ci3,stats3] = ttest(res9)                                       % perfettamente normale
 %I test ci permettono di affermare che la distribuzione è normale (4/4) 
 
 
