@@ -176,7 +176,7 @@ title('Emissioni C0_2 reali vs stimate (fitting lineare una variabile)')
 xlabel('Tempo [Mesi]')
 ylabel('Quantità emessa [Mln di tonnellate]')
 legend('Emissioni di CO2 dataset','Emissioni di C02 stimati')
-saveas(f7,[pwd '\immagini\07.VenditeAuto_realeVSstimata_Regr_Sempl.png'])
+saveas(f7,[pwd '\immagini\07.Emissioni_realeVSstimata_Regr_Sempl.png'])
 
 %%% Adattamento del modello
 mhat.Rsquared
