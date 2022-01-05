@@ -1001,7 +1001,7 @@ f27 = figure('Position',[100,100,1250,675])
 plot(T11.Rif_Mese,res2_k2)
 hold on;
 plot(T11.Rif_Mese,condVol)
-title('Residui e inferred conditional volatility con GARCH(0,1)')
+title('Residui e inferred conditional volatility con GARCH(0,2)')
 xlabel('Tempo [Mesi]') 
 legend('Quantità emessa','Estim. cond. volatility','Location','NorthEast')
 hold off;
@@ -1158,3 +1158,14 @@ kurtosis(res71)                                                         %non nor
 [h,p,jbstat,critval] = jbtest(res71, 0.01)                              % pv = 0.3219 --> normalità
 [h,p,dstat,critval] = lillietest(res71,'Alpha',0.05)                    % pv = 0.3441 --> normalità
 [h3,p3,ci3,stats3] = ttest(res71)                                       % perfettamente normale
+
+% Test autocorrelazione
+[h,pValue,stat,cValue] = lbqtest(res71,'lags',[1,4,6]) %residui autocorrelati di ordine 1
+
+f50 = figure('Position',[100,100,1250,675])
+subplot(2,2,1)
+autocorr(res71)
+title('ACF residui')
+subplot(2,2,2)
+parcorr(res71)
+title('PACF residui')
