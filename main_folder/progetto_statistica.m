@@ -972,10 +972,10 @@ res2_k2 = res_k2.^2;
 f26 = figure('Position',[100,100,1250,675])
 subplot(2,2,1)
 autocorr(res_k2)
-title('ACF residui')
+title('ACF residui filtro')
 subplot(2,2,2)
 parcorr(res_k2)
-title('PACF residui')
+title('PACF residui filtro')
 subplot(2,2,3)
 autocorr(res2_k2,24)
 title('ACF residui filtro^2')
@@ -1012,7 +1012,7 @@ std_res = res2_k2 ./ condVol;
 std_res2 = std_res .^ 2;
 
 %%% Diagnostiche sui residui standardizzati
-figure
+f27a = figure('Position',[100,100,1250,675])
 subplot(2,2,1)
 plot(std_res)
 title('Standardized Residuals')
@@ -1022,8 +1022,9 @@ subplot(2,2,3)
 autocorr(std_res)
 subplot(2,2,4)
 parcorr(std_res)
+saveas(f27a,[pwd '\immagini\27a.residui_standardizzati_dopo_garch.png'])
 
-figure
+f27b = figure('Position',[100,100,1250,675])
 subplot(2,2,1)
 plot(std_res2)
 title('Standardized Residuals Squared')
@@ -1033,6 +1034,7 @@ subplot(2,2,3)
 autocorr(std_res2)
 subplot(2,2,4)
 parcorr(std_res2)
+saveas(f27b,[pwd '\immagini\27b.residui_standardizzati_quadrato_dopo_garch.png'])
 % I residui al quadrato presentano ancora autocorrelazione parziale ma non
 % importante come nel caso precedente.
 
@@ -1044,7 +1046,7 @@ parcorr(std_res2)
 
 %%Correlazione su dati annuali
 %T1K = T1([1:59],:);
-tt3=corr(T1.AnomalieSulRiscaldamento, T1.TotalEnergyCO2EmissionsUSA)      %corr=0.740
+tt3=corr(T1.AnomalieSulRiscaldamento, T1.TotalEnergyCO2EmissionsUSA)      %corr=0.7498
 
 %regressione semplice
 mhat = fitlm(T1,'ResponseVar','AnomalieSulRiscaldamento','PredictorVars','TotalEnergyCO2EmissionsUSA')   
@@ -1053,8 +1055,8 @@ mhat.Coefficients
 %%% Significatività complessiva del modello
 anova(mhat,'summary')
 %%% Adattamento del modello
-mhat.Rsquared                       % R-squared: 0.548
-% Il modello è in grado di spiegare il 54,8% della variabilità complessiva di Y
+mhat.Rsquared                       % R-squared: 0.562
+% Il modello è in grado di spiegare il 56,2% della variabilità complessiva di Y
 %%% Valori fittati dal modello: yhat_t
 fit70 = mhat.Fitted             
 %%% Residui di regressione: y_t - yhat_t
@@ -1096,18 +1098,18 @@ saveas(f29,[pwd '\immagini\29.Residui_annuale_Regress_semplice.png'])
 skewness(res70)    
 kurtosis(res70)                                                         %non molto normali
 % Test normalità residui
-[h,p,jbstat,critval] = jbtest(res70, 0.05)                              % pv = 0.0087 --> non sono normalità
-[h,p,jbstat,critval] = jbtest(res70, 0.01)                              % pv = 0.0087 --> non normalità
-[h,p,dstat,critval] = lillietest(res70,'Alpha',0.05)                    % pv = 0.0825 --> non normalità
-[h3,p3,ci3,stats3] = ttest(res70)                                       % pnormale
+[h,p,jbstat,critval] = jbtest(res70, 0.05)                              % pv = 0.0086 --> non sono normalità
+[h,p,jbstat,critval] = jbtest(res70, 0.01)                              % pv = 0.0086 --> non normalità
+[h,p,dstat,critval] = lillietest(res70,'Alpha',0.05)                    % pv = 0.208 --> normalità
+[h3,p3,ci3,stats3] = ttest(res70)                                       % normale
 
 
 %Regressione lineare MULTIPLA: y_t = beta0 + beta1*x_t + epsilon_t
 mhat = fitlm(T1,'ResponseVar','AnomalieSulRiscaldamento','PredictorVars',{'TotalEnergyCO2EmissionsUSA','TotalEnergyCO2EmissionChina','TotalEnergyCO2EmissionRussia'})   
 %%% Coefficienti stimati
 mhat.Coefficients
-mhat.Rsquared           % R-squared: 0.885
-% Il modello è in grado di spiegare il 88.5% della variabilità complessiva di Y
+mhat.Rsquared           % R-squared: 0.886
+% Il modello è in grado di spiegare il 88.6% della variabilità complessiva di Y
 %%% Valori fittati dal modello: yhat_t
 fit71 = mhat.Fitted             
 %%% Residui di regressione: y_t - yhat_t
@@ -1154,9 +1156,9 @@ saveas(f31,[pwd '\immagini\31.Residui_annuale_Regress_mult.png'])
 skewness(res71)                                                         %normale
 kurtosis(res71)                                                         %non normale
 % Test normalità residui
-[h,p,jbstat,critval] = jbtest(res71, 0.05)                              % pv = 0.3219 --> normalità
-[h,p,jbstat,critval] = jbtest(res71, 0.01)                              % pv = 0.3219 --> normalità
-[h,p,dstat,critval] = lillietest(res71,'Alpha',0.05)                    % pv = 0.3441 --> normalità
+[h,p,jbstat,critval] = jbtest(res71, 0.05)                              % pv = 0.3145 --> normalità
+[h,p,jbstat,critval] = jbtest(res71, 0.01)                              % pv = 0.3145 --> normalità
+[h,p,dstat,critval] = lillietest(res71,'Alpha',0.05)                    % pv = 0.2806 --> normalità
 [h3,p3,ci3,stats3] = ttest(res71)                                       % perfettamente normale
 
 % Test autocorrelazione
@@ -1169,3 +1171,15 @@ title('ACF residui')
 subplot(2,2,2)
 parcorr(res71)
 title('PACF residui')
+
+f32 = figure('Position',[100,100,1250,675])  %Scelta dimensioni
+plot(T1.Years,T1.TotalEnergyCO2EmissionsUSA,"LineWidth",1.3)
+xlabel('Tempo [Anni]')
+ylabel('Emissioni CO_{2} [mln di tonnellate]')
+title('Emissioni CO_{2} per categoria. Anni: 1949-2021')
+hold on
+plot(T1.Years,T1.TotalEnergyCO2EmissionChina,'Linewidth',1.3)
+plot(T1.Years,T1.TotalEnergyCO2EmissionRussia,'Linewidth',1.3)
+legend('Emissioni CO_{2} USA','Emissioni CO_{2} Cina','Emissioni CO_{2} Russia')
+grid minor
+saveas(f32,[pwd '\immagini\32.ConfrontoEmissioniCO2_paesi.png'])
