@@ -1,4 +1,4 @@
-% % IMPORTO DATASET
+%% IMPORTO DATASET
 
 T0 = readtable('DATA SET UFFICIALE.xlsx');
 T2 = readtable('DATA SET UFFICIALE.xlsx','Sheet','YEAR');
@@ -419,18 +419,25 @@ saveas(f12,[pwd '\immagini\12.Emissioni_realiVSstimate_Lasso.png'])
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%% DOMANDA 2 --> Previsione delle emissioni basata su modelli autoregressivi integrati a media mobile %%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+LT = trenddecomp(T11.Emiss_C02_NTotE)
 % Rappresentazione grafica della serie storica
-f12 = figure('Position',[100,100,1250,675])
+f12y = figure('Position',[100,100,1250,675])
 plot(T11.Rif_Mese,T11.Emiss_C02_NTotE)
-title('Andamento delle emissioni di C0_2 da gennaio 2010 a luglio 2021')
+hold on
+plot(T11.Rif_Mese,LT)
+title('Andamento delle emissioni di C0_2 da gennaio 2010 a luglio 2021 + trend')
 xlabel('Tempo [Mesi]') 
 ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Emissioni di C02 test data','Trend')
+saveas(f12y,[pwd '\immagini\12y.Emissioni_reali_trend.png'])
 
 % AUTOREGRESSIVI: Caratteristiche grafiche della serie: autocorrelazioni e distribuzione
 f13 = figure('Position',[100,100,1250,675])
 % Serie storica
 subplot(2,2,1)      
 plot(T11.Rif_Mese,T11.Emiss_C02_NTotE);
+hold on
+plot(T11.Rif_Mese,LT)
 title('Serie storica delle emissioni di C0_2')
 % Istogramma della distribuzione
 subplot(2,2,2)       
@@ -449,6 +456,8 @@ saveas(f13,[pwd '\immagini\13.ACF_PACF_Emissioni.png'])
 % PACF --> si nota una stagionalità ogni 12 mesi, ma la
 % significatività varia annualmente.
 
+
+
 % Test di Bera-Jarque di normalità - H0 = dati normali
 [h,p,jbstat,critval] = jbtest(T11.Emiss_C02_NTotE)                      % normalità dei dati
 
@@ -463,7 +472,7 @@ saveas(f13,[pwd '\immagini\13.ACF_PACF_Emissioni.png'])
 % Augmented-Dickey-Fuller test per stazionarietà
 % H0 = la serie è non stazionaria
 % H1 = la serie è stazionaria
-[h,p,adfstat,critval] = adftest(T11.Emiss_C02_NTotE,'model','TS','lags',0:24)
+[h,p,adfstat,critval] = adftest(T11.Emiss_C02_NTotE,'model','TS','lags',0:2)  %STAZIONARIA CON LAG 3
 
 
 %%%%% ModellO AR(12)
@@ -509,6 +518,94 @@ saveas(f14,[pwd '\immagini\14.Fitting_AR12.png'])
 %%% SOVRASTIMA quasi sempre i picchi sia in positivo che negativo.
 RMSE = sqrt(mean((y_test_m - fit_right).^2))  % Root Mean Squared Error = 33.31
 
+%new model (CON IL FATTORE INTEGRATO che differenzia la serie di ordine 2)
+%ARIMA(2,2,2)
+
+Modello_nuovo = arima(2,2,2);
+Modello_nuovo2 = estimate(Modello_nuovo,y_train_m,'Display','off');
+summarize(Modello_nuovo2);
+innov_nuove = infer(Modello_nuovo2, y_train_m, 'Y0',y_train_m(1:7));  
+innov_nuove_te2 = infer(Modello_nuovo2, y_test_m, 'Y0',y_test_m(1:7));
+nuove_2 = forecast(Modello_nuovo2,24,y_test_m);
+fit_right2_nuovi = nuove_2+innov_nuove_te2;
+
+%%% Grafico della serie osservata e stimata/fittata
+f14A = figure('Position',[100,100,1250,675])
+plot(Period_train,y_train_m)
+hold on
+plot(Period_test,y_test_m)
+plot(Period_test,fit_right2_nuovi)
+legend('Osservata training dataset','Osservata test dataset','Fittata ARIMA(2,3,2)')
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+title('Serie storica osservata e fittata con ARIMA(2,2,2)')
+saveas(f14A,[pwd '\immagini\14A.Fitting_ARIMA(2,2,2).png'])
+%%% SOVRASTIMA quasi sempre i picchi sia in positivo che negativo.
+RMSE = sqrt(mean((y_test_m - fit_right2_nuovi).^2))  % Root Mean Squared Error = 41.82
+
+
+%regARIMA ottimizzazione
+%%% Ciclo for per stabilire ordine ottimo dei ARIMA sui residui
+pMax = 4;
+qMax = 4;
+AIC = zeros(pMax+1,qMax+1);
+BIC = zeros(pMax+1,qMax+1);
+
+for p = 0:pMax
+    for q = 0:qMax
+        if p == 0 & q == 0
+            Mdl = regARIMA(0,0,0);
+        end
+        if p == 0 & q ~= 0
+            Mdl = regARIMA(0,0,q);
+        end
+        if p ~= 0 & q == 0
+            Mdl = regARIMA(p,0,0);
+        end
+        if p ~= 0 & q ~= 0
+            Mdl = regARIMA(p,0,q);
+        end       
+        EstMdl = estimate(Mdl,y_train_m,'Display','off');
+        results = summarize(EstMdl);
+        AIC(p+1,q+1) = results.AIC;         % p = rows
+        BIC(p+1,q+1) = results.BIC;         % q = columns
+    end
+end
+
+% Confrontiamo AIC e BIC dei valori modelli stimati
+minAIC = min(AIC(min(AIC>0)))
+[bestP_AIC,bestQ_AIC] = find(AIC == minAIC)
+%[bestP_AIC,bestQ_AIC] = [bestP_AIC,bestQ_AIC]-1
+minBIC = min(BIC(min(BIC>0)))
+[bestP_BIC,bestQ_BIC] = find(BIC == minBIC)
+%[bestP_BIC,bestQ_BIC] = [bestP_BIC,bestQ_BIC]-1
+fprintf('%s%d%s%d%s','The model with minimum AIC is ARIMA(', bestP_AIC,',0,',bestQ_AIC,')');
+fprintf('%s%d%s%d%s','The model with minimum BIC is ARIMA(', bestP_BIC,',0,',bestQ_BIC,')');
+
+%esce che il modelli che minimizzano AIC E BIC sono (5,0,1) e (4,0,1)
+% ma noi in questo momento ci basiamo sul RMSE quindi modello ottimo
+% (2,0,2)
+RegARIMA1 = regARIMA(2,0,2);
+% Stime MLE del modello
+RegARIMA1s = estimate(RegARIMA1, y_train_m);
+innov_test4 = infer(RegARIMA1s, y_test_m);
+[gdpF,gdpMSE] = forecast(RegARIMA1s,24,'Y0',y_test_m);
+fit_regARIMA = gdpF+innov_test4;
+
+RMSE = sqrt(mean((y_test_m - fit_regARIMA).^2))              % RMSE= 20.03
+
+f14b = figure('Position',[100,100,1250,675])
+plot(Period_test,y_test_m,'LineWidth', 2)
+hold on
+plot(Period_test,fittedSARIMA_opt)
+plot(Period_test,fit_right2)
+plot(Period_test,fit_regARIMA)
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Osservata','SARIMA((1,0,1),(12,0,0))',...
+    'ARIMA(2,0,2)','regARIMA')
+title('Serie storica osservata e fittata con diversi modelli')
+saveas(f14b,[pwd '\immagini\14b.ConfrontoModelli_iniziale_modelli_test.png'])
 
 %%%%% Modelli ARIMA
 % Modello ARIMA (2,0,2)
@@ -637,15 +734,17 @@ plot(Period_test,y_test_m,'LineWidth', 2)
 hold on
 plot(Period_test,fittedSARIMA_opt)
 plot(Period_test,fit_right2)
-plot(Period_test,fit_right3)
+plot(Period_test,fit_regARIMA)
 plot(Period_test,fit_right)
+plot(Period_test,fit_right2_nuovi)
 xlabel('Tempo [Mesi]') 
 ylabel('Quantità emessa [Mln di tonnellate]')
 legend('Osservata','SARIMA((1,0,1),(12,0,0))',...
-    'ARIMA(2,0,2)','ARIMA(3,0,3)','AR(12)')
+    'ARIMA(2,0,2)','RegARIMA(2,0,2)','AR(12)','ARIMA(2,2,2)')
 title('Serie storica osservata e fittata con diversi modelli')
 saveas(f16a,[pwd '\immagini\16a.ConfrontoModelli_test.png'])
 
+%VALUTAZIONE DEI RESIDUI DI UNO DEI MODELLI (ARIMA(2,0,2))
 %normalizzazione residui per test ADF
 media_adf = mean(innov_te2)
 innovazioni_normalizzate = innov_te2-media_adf
@@ -695,10 +794,25 @@ parcorr(res_k)
 title('PACF residui')
 saveas(f18,[pwd '\immagini\18.ACF_PACF_residui_modellati.png'])
 
+
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%% DOMANDA 3 --> Stima delle emissioni di CO2 basata su indici climatici %%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%fa vedere un trend decrescente dell'HDD che in accordo con la nostra tesi
+%del fatto del riscaldamento globale.
+LT2 = trenddecomp(T.HDD)
+%plot variabile hdd
+f19a = figure('Position',[100,100,1250,675])
+plot(T.Rif_Mese, T.HDD)
+hold on
+plot(T.Rif_Mese, LT2)
+legend('Hdd')
+title('Serie storica totale HDD')
+xlabel('Tempo [Mesi]') 
+ylabel('HDD [Grado giorno]')
+saveas(f19a,[pwd '\immagini\19a.Serie_HDD.png'])
 
 % Variabili di interesse
 yy = T11.Emiss_C02_NTotE;       %variabile di risposta
@@ -1172,6 +1286,8 @@ subplot(2,2,2)
 parcorr(res71)
 title('PACF residui')
 
+% Grafici della tre serie paesi
+
 f32 = figure('Position',[100,100,1250,675])  %Scelta dimensioni
 plot(T1.Years,T1.TotalEnergyCO2EmissionsUSA,"LineWidth",1.3)
 xlabel('Tempo [Anni]')
@@ -1183,3 +1299,43 @@ plot(T1.Years,T1.TotalEnergyCO2EmissionRussia,'Linewidth',1.3)
 legend('Emissioni CO_{2} USA','Emissioni CO_{2} Cina','Emissioni CO_{2} Russia')
 grid minor
 saveas(f32,[pwd '\immagini\32.ConfrontoEmissioniCO2_paesi.png'])
+
+%%% Modellare residui con RegARIMA:
+
+%%% Modello 1: RegARIMA(1,0,0)
+res_opt4 = regARIMA('ARLags',1)
+% Stime MLE del modello
+mod_reg_ARMA4 = estimate(res_opt4, res71);
+% Innovazioni del modello
+innov_ARMA4 = infer(mod_reg_ARMA4, res71);
+
+f33 = figure('Position',[100,100,1250,675])
+subplot(2,2,1)
+autocorr(innov_ARMA4)
+title('ACF residui')
+subplot(2,2,2)
+parcorr(innov_ARMA4)
+title('PACF residui')
+saveas(f33,[pwd '\immagini\33.RegARIMA(1,0,0)_anomalie.png'])
+
+%%% Modello 2: identificato regARIMA(2,0,1)
+% I residui sono modellati come processo ARMA(2,1)      
+
+%riesce a togliere tutta l'autocorrelazione  mettendo due AR con dei
+%determinati coefficienti ai ritardi 1 e 2.
+res_opt = regARIMA('Intercept',5,'AR',{0.1 0.2},'MA',{0.5},...
+    'Variance',0.5)
+% Stime MLE del modello
+mod_reg_ARMA = estimate(res_opt, res71);
+% Innovazioni del modello
+innov_ARMA = infer(mod_reg_ARMA, res71);
+summarize(mod_reg_ARMA)
+
+f34 = figure('Position',[100,100,1250,675])
+subplot(2,2,1)
+autocorr(innov_ARMA)
+title('ACF residui')
+subplot(2,2,2)
+parcorr(innov_ARMA)
+title('PACF residui')
+saveas(f34,[pwd '\immagini\34.RegARIMA(2,0,1)_anomalie.png'])
