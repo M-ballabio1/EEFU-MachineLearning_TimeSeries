@@ -472,7 +472,7 @@ saveas(f13,[pwd '\immagini\13.ACF_PACF_Emissioni.png'])
 % Augmented-Dickey-Fuller test per stazionarietà
 % H0 = la serie è non stazionaria
 % H1 = la serie è stazionaria
-[h,p,adfstat,critval] = adftest(T11.Emiss_C02_NTotE,'model','TS','lags',0:2)  %STAZIONARIA CON LAG 3
+[h,p,adfstat,critval] = adftest(T11.Emiss_C02_NTotE,'model','TS','lags',0:6)  %STAZIONARIA CON LAG 3
 
 
 %%%%% ModellO AR(12)
@@ -503,6 +503,19 @@ innov_tr = infer(EstAR12, y_train_m, 'Y0',y_train_m(1:12));
 innov_te = infer(EstAR12, y_test_m, 'Y0',y_test_m(1:12));
 new = forecast(EstAR12,24,y_test_m);
 fit_right = new+innov_te;
+
+% Vedo com'è training set
+serie_training_ar12 = y_train_m+innov_tr
+RMSE = sqrt(mean((y_train_m - serie_training_ar12).^2))  % Root Mean Squared Error = 15.86
+
+f14 = figure('Position',[100,100,1250,675])
+plot(Period_train,y_train_m)
+hold on
+plot(Period_train,serie_training_ar12)
+legend('Osservata training dataset','Fittata training AR(12)')
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+title('Valutazione training con AR(12)')
 
 %%% Grafico della serie osservata e stimata/fittata
 f14 = figure('Position',[100,100,1250,675])
@@ -541,71 +554,8 @@ ylabel('Quantità emessa [Mln di tonnellate]')
 title('Serie storica osservata e fittata con ARIMA(2,2,2)')
 saveas(f14A,[pwd '\immagini\14A.Fitting_ARIMA(2,2,2).png'])
 %%% SOVRASTIMA quasi sempre i picchi sia in positivo che negativo.
-RMSE = sqrt(mean((y_test_m - fit_right2_nuovi).^2))  % Root Mean Squared Error = 41.82
+RMSE = sqrt(mean((y_test_m - fit_right2_nuovi).^2))  % Root Mean Squared Error = 41.8357
 
-
-%regARIMA ottimizzazione
-%%% Ciclo for per stabilire ordine ottimo dei ARIMA sui residui
-pMax = 4;
-qMax = 4;
-AIC = zeros(pMax+1,qMax+1);
-BIC = zeros(pMax+1,qMax+1);
-
-for p = 0:pMax
-    for q = 0:qMax
-        if p == 0 & q == 0
-            Mdl = regARIMA(0,0,0);
-        end
-        if p == 0 & q ~= 0
-            Mdl = regARIMA(0,0,q);
-        end
-        if p ~= 0 & q == 0
-            Mdl = regARIMA(p,0,0);
-        end
-        if p ~= 0 & q ~= 0
-            Mdl = regARIMA(p,0,q);
-        end       
-        EstMdl = estimate(Mdl,y_train_m,'Display','off');
-        results = summarize(EstMdl);
-        AIC(p+1,q+1) = results.AIC;         % p = rows
-        BIC(p+1,q+1) = results.BIC;         % q = columns
-    end
-end
-
-% Confrontiamo AIC e BIC dei valori modelli stimati
-minAIC = min(AIC(min(AIC>0)))
-[bestP_AIC,bestQ_AIC] = find(AIC == minAIC)
-%[bestP_AIC,bestQ_AIC] = [bestP_AIC,bestQ_AIC]-1
-minBIC = min(BIC(min(BIC>0)))
-[bestP_BIC,bestQ_BIC] = find(BIC == minBIC)
-%[bestP_BIC,bestQ_BIC] = [bestP_BIC,bestQ_BIC]-1
-fprintf('%s%d%s%d%s','The model with minimum AIC is ARIMA(', bestP_AIC,',0,',bestQ_AIC,')');
-fprintf('%s%d%s%d%s','The model with minimum BIC is ARIMA(', bestP_BIC,',0,',bestQ_BIC,')');
-
-%esce che il modelli che minimizzano AIC E BIC sono (5,0,1) e (4,0,1)
-% ma noi in questo momento ci basiamo sul RMSE quindi modello ottimo
-% (2,0,2)
-RegARIMA1 = regARIMA(2,0,2);
-% Stime MLE del modello
-RegARIMA1s = estimate(RegARIMA1, y_train_m);
-innov_test4 = infer(RegARIMA1s, y_test_m);
-[gdpF,gdpMSE] = forecast(RegARIMA1s,24,'Y0',y_test_m);
-fit_regARIMA = gdpF+innov_test4;
-
-RMSE = sqrt(mean((y_test_m - fit_regARIMA).^2))              % RMSE= 20.03
-
-f14b = figure('Position',[100,100,1250,675])
-plot(Period_test,y_test_m,'LineWidth', 2)
-hold on
-plot(Period_test,fittedSARIMA_opt)
-plot(Period_test,fit_right2)
-plot(Period_test,fit_regARIMA)
-xlabel('Tempo [Mesi]') 
-ylabel('Quantità emessa [Mln di tonnellate]')
-legend('Osservata','SARIMA((1,0,1),(12,0,0))',...
-    'ARIMA(2,0,2)','regARIMA')
-title('Serie storica osservata e fittata con diversi modelli')
-saveas(f14b,[pwd '\immagini\14b.ConfrontoModelli_iniziale_modelli_test.png'])
 
 %%%%% Modelli ARIMA
 % Modello ARIMA (2,0,2)
@@ -629,6 +579,19 @@ title('Serie storica osservata e fittata con ARIMA(2,0,2)')
 saveas(f15,[pwd '\immagini\15.Fitting_ARIMA.png'])
 
 RMSE = sqrt(mean((y_test_m - fit_right2).^2))  % Root Mean Squared Error = 24.1335
+
+% Vedo com'è training set
+serie_training_arma22 = y_train_m+innovMA112
+RMSE = sqrt(mean((y_train_m - serie_training_arma22).^2))  % Root Mean Squared Error = 30.33
+
+f14 = figure('Position',[100,100,1250,675])
+plot(Period_train,y_train_m)
+hold on
+plot(Period_train,serie_training_arma22)
+legend('Osservata training dataset','Fittata training ARMA(2,2)')
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+title('Valutazione training con ARMA(2,2)')
 
 
 %%%% Metodo iterativo scelta parametri per minimizzare l'AIC e il BIC
@@ -682,11 +645,25 @@ SARIMA_opt = arima('ARLags',1,'SARLags',12);
 summarize(SARIMA_opt)
 Est_SARIMA_opt = estimate(SARIMA_opt,y_train_m);
 summarize(Est_SARIMA_opt)
+E0 = infer(Est_SARIMA_opt, y_train_m, 'Y0',T11.Emiss_C02_NTotE(1:14));
 E = infer(Est_SARIMA_opt, y_test_m, 'Y0',T11.Emiss_C02_NTotE(1:14));
 fittedSARIMA_opt = y_test_m + E;
 
 % RMSE del test
 RMSE = sqrt(mean((y_test_m - fittedSARIMA_opt).^2))  % Root Mean Squared Error = 42,527
+
+% Vedo com'è training set
+serie_training_sar = y_train_m+E0
+RMSE = sqrt(mean((y_train_m - serie_training_sar).^2))  % Root Mean Squared Error = 23.08
+
+f14 = figure('Position',[100,100,1250,675])
+plot(Period_train,y_train_m)
+hold on
+plot(Period_train,serie_training_sar)
+legend('Osservata training dataset','Fittata training SAR(12)')
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+title('Valutazione training con SAR(12)')
 
 %%%%% Modelli ARIMA (TROVATO CON ciclo for (togliendo componente stagionale)
 % Modello ARIMA((3,0,3)
@@ -697,10 +674,10 @@ MAS11 = estimate(MA11,y_train_m,'Display','off');
 summarize(MAS11);
 innovMA112 = infer(MAS11, y_train_m, 'Y0',y_train_m(1:6));  
 %fittedMA112 = T11.Emiss_C02_NTotE + innovMA112;
-innov_te2 = infer(MAS11, y_test_m, 'Y0',y_test_m(1:6));
+innov_te9 = infer(MAS11, y_test_m, 'Y0',y_test_m(1:6));
 %fitted = y_train_m + innov_tr;
 new_2 = forecast(MAS11,24,y_test_m);
-fit_right3 = new_2+innov_te2;
+fit_right3 = new_2+innov_te9;
 
 f15a = figure('Position',[100,100,1250,675])
 plot(Period_train,y_train_m)
@@ -728,21 +705,6 @@ legend('Osservata','SARIMA((1,0,1),(12,0,0))',...
 title('Serie storica osservata e fittata con diversi modelli')
 saveas(f16,[pwd '\immagini\16.ConfrontoModelli.png'])
 
-%solo su test
-f16a = figure('Position',[100,100,1250,675])
-plot(Period_test,y_test_m,'LineWidth', 2)
-hold on
-plot(Period_test,fittedSARIMA_opt)
-plot(Period_test,fit_right2)
-plot(Period_test,fit_regARIMA)
-plot(Period_test,fit_right)
-plot(Period_test,fit_right2_nuovi)
-xlabel('Tempo [Mesi]') 
-ylabel('Quantità emessa [Mln di tonnellate]')
-legend('Osservata','SARIMA((1,0,1),(12,0,0))',...
-    'ARIMA(2,0,2)','RegARIMA(2,0,2)','AR(12)','ARIMA(2,2,2)')
-title('Serie storica osservata e fittata con diversi modelli')
-saveas(f16a,[pwd '\immagini\16a.ConfrontoModelli_test.png'])
 
 %VALUTAZIONE DEI RESIDUI DI UNO DEI MODELLI (ARIMA(2,0,2))
 %normalizzazione residui per test ADF
@@ -759,7 +721,7 @@ yline(media_nuova,'r')
 hold off
 title('Serie storica dei residui')
 subplot(2,2,2)       
-histfit(innov_te2,20,'Normal')
+histfit(innov_te2,10,'Normal')
 title('Istogramma dei residui')
 subplot(2,2,3)       
 autocorr(innov_te2);
@@ -771,7 +733,7 @@ saveas(f17,[pwd '\immagini\17.ACF_PACF_ARIMA(2,0,2).png'])
 
 % Test analitici sui residui
 [h,p,jbstat,critval] = jbtest(innov_te2)                                  % i dati sono normali             
-[h,pValue,stat,cValue] = lbqtest(innov_te2,'lags',[1,6,8,12,13])          % ai ritardi 1,8,12,13 autocorrelazione
+[h,pValue,stat,cValue] = lbqtest(innov_te2,'lags',[1,6,8,12,13,16])          % ai ritardi 1,8,12,13 autocorrelazione
 [h,p,adfstat,critval] = adftest(innovazioni_normalizzate)                 % i residui sono stazionari
 
 %Test di engle per l'eteroschedaticità
@@ -793,6 +755,115 @@ subplot(2,2,2)
 parcorr(res_k)
 title('PACF residui')
 saveas(f18,[pwd '\immagini\18.ACF_PACF_residui_modellati.png'])
+
+[h,pValue,stat,cValue] = lbqtest(res_k,'lags',[6,8,12]) 
+
+%regARIMA ottimizzazione
+%%% Ciclo for per stabilire ordine ottimo dei ARIMA sui residui
+pMax = 4;
+qMax = 4;
+AIC = zeros(pMax+1,qMax+1);
+BIC = zeros(pMax+1,qMax+1);
+
+for p = 0:pMax
+    for q = 0:qMax
+        if p == 0 & q == 0
+            Mdl = regARIMA(0,0,0);
+        end
+        if p == 0 & q ~= 0
+            Mdl = regARIMA(0,0,q);
+        end
+        if p ~= 0 & q == 0
+            Mdl = regARIMA(p,0,0);
+        end
+        if p ~= 0 & q ~= 0
+            Mdl = regARIMA(p,0,q);
+        end       
+        EstMdl = estimate(Mdl,y_train_m,'Display','off');
+        results = summarize(EstMdl);
+        AIC(p+1,q+1) = results.AIC;         % p = rows
+        BIC(p+1,q+1) = results.BIC;         % q = columns
+    end
+end
+
+% Confrontiamo AIC e BIC dei valori modelli stimati
+minAIC = min(AIC(min(AIC>0)))
+[bestP_AIC,bestQ_AIC] = find(AIC == minAIC)
+%[bestP_AIC,bestQ_AIC] = [bestP_AIC,bestQ_AIC]-1
+minBIC = min(BIC(min(BIC>0)))
+[bestP_BIC,bestQ_BIC] = find(BIC == minBIC)
+%[bestP_BIC,bestQ_BIC] = [bestP_BIC,bestQ_BIC]-1
+fprintf('%s%d%s%d%s','The model with minimum AIC is ARIMA(', bestP_AIC,',0,',bestQ_AIC,')');
+fprintf('%s%d%s%d%s','The model with minimum BIC is ARIMA(', bestP_BIC,',0,',bestQ_BIC,')');
+
+%esce che il modelli che minimizzano AIC E BIC sono (5,0,1) e (4,0,1)
+% ma noi in questo momento ci basiamo sul RMSE quindi modello ottimo
+% (2,0,2)
+
+%creazione componente deterministica con coseno (uso come regressore)
+n = size(T11.Emiss_C02_NTotE,1)
+s = 12;
+% per ogni j ho sin e cos. Quindi j=3 e perciò 3 colonne.
+sinusoidi = [cos(1*2*pi*[1:n]'/s),...
+            cos(2*2*pi*[1:n]'/s),...
+            cos(3*2*pi*[1:n]'/s)];
+
+cos_train = sinusoidi([1:115],:);
+cos_test = sinusoidi([116:end],:);
+
+RegARIMA1 = regARIMA(2,0,2);
+% Stime MLE del modello
+RegARIMA1s = estimate(RegARIMA1, y_train_m,'X',cos_train);
+innov_train4 = infer(RegARIMA1s, y_train_m,'X',cos_train);
+innov_test4 = infer(RegARIMA1s, y_test_m,'X',cos_test);
+[gdpF,gdpMSE] = forecast(RegARIMA1s,24,'Y0',y_test_m);
+fit_regARIMA = gdpF+innov_test4;
+
+RMSE = sqrt(mean((y_test_m - fit_regARIMA).^2))              % RMSE= 26,706
+
+f14b = figure('Position',[100,100,1250,675])
+plot(Period_test,y_test_m,'LineWidth', 2)
+hold on
+plot(Period_test,fittedSARIMA_opt)
+plot(Period_test,fit_right2)
+plot(Period_test,fit_regARIMA)
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Osservata','SARIMA((1,0,1),(12,0,0))',...
+    'ARIMA(2,0,2)','regARIMA')
+title('Serie storica osservata e fittata con diversi modelli')
+saveas(f14b,[pwd '\immagini\14b.ConfrontoModelli_iniziale_modelli_test.png'])
+
+% Vedo com'è training set
+serie_training_regARMA = y_train_m+innov_train4
+RMSE = sqrt(mean((y_train_m - serie_training_regARMA).^2))  % Root Mean Squared Error = 19.65
+
+f14 = figure('Position',[100,100,1250,675])
+plot(Period_train,y_train_m)
+hold on
+plot(Period_train,serie_training_regARMA)
+legend('Osservata training dataset','Fittata training regARMA(2,2)')
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+title('Valutazione training con regARMA(2,2)')
+
+%%%%%% CONFRONTO FINALE SUL TEST
+
+%solo su test
+f16a = figure('Position',[100,100,1250,675])
+plot(Period_test,y_test_m,'LineWidth', 2)
+hold on
+plot(Period_test,fittedSARIMA_opt)
+plot(Period_test,fit_right2)
+plot(Period_test,fit_regARIMA)
+plot(Period_test,fit_right)
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
+legend('Osservata','SARIMA((1,0,1),(12,0,0))',...
+    'ARIMA(2,0,2)','RegARIMA(2,0,2)','AR(12)')
+title('Serie storica osservata e fittata con diversi modelli')
+saveas(f16a,[pwd '\immagini\16a.ConfrontoModelli_test.png'])
+
 
 
 %%
@@ -1286,8 +1357,7 @@ subplot(2,2,2)
 parcorr(res71)
 title('PACF residui')
 
-% Grafici della tre serie paesi
-
+% Grafici della tre serie per USA, Cina e Russia
 f32 = figure('Position',[100,100,1250,675])  %Scelta dimensioni
 plot(T1.Years,T1.TotalEnergyCO2EmissionsUSA,"LineWidth",1.3)
 xlabel('Tempo [Anni]')
@@ -1339,3 +1409,4 @@ subplot(2,2,2)
 parcorr(innov_ARMA)
 title('PACF residui')
 saveas(f34,[pwd '\immagini\34.RegARIMA(2,0,1)_anomalie.png'])
+
