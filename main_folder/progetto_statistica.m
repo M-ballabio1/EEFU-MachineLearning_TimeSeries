@@ -1370,9 +1370,9 @@ legend('Emissioni CO_{2} USA','Emissioni CO_{2} Cina','Emissioni CO_{2} Russia')
 grid minor
 saveas(f32,[pwd '\immagini\32.ConfrontoEmissioniCO2_paesi.png'])
 
-%%% Modellare residui con RegARIMA:
+%%% Modellare residui con ARIMA:
 
-%%% Modello 1: RegARIMA(1,0,0)
+%%% Modello 1: ARIMA(1,0,0)
 res_opt4 = regARIMA('ARLags',1)
 % Stime MLE del modello
 mod_reg_ARMA4 = estimate(res_opt4, res71);
@@ -1388,7 +1388,7 @@ parcorr(innov_ARMA4)
 title('PACF residui')
 saveas(f33,[pwd '\immagini\33.RegARIMA(1,0,0)_anomalie.png'])
 
-%%% Modello 2: identificato regARIMA(2,0,1)
+%%% Modello 2: identificato ARIMA(2,0,1)
 % I residui sono modellati come processo ARMA(2,1)      
 
 %riesce a togliere tutta l'autocorrelazione  mettendo due AR con dei
