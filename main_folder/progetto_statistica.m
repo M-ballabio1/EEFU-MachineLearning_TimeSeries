@@ -892,6 +892,7 @@ xx2 = xx.^2;
 XX = [xx,xx2];
 nn = length(yy);
 
+figure
 plot(xx,yy,'p')
 title('HDD vs Emissioni di CO_2')
 xlabel('HDD [Grado giorno]')
@@ -949,19 +950,23 @@ mhat1 = estimate(m1,yy,params01);
 
 % Filtraggio degli stati
 xfilter2 = filter(mhat1,yy);
-alpha2.flt = xfilter2(:,1);                           
+alpha2.flt = xfilter2(:,1);
+figure
 plot(alpha2.flt) 
 %La stima del coefficiente tende a stabilizzarsi e a convergere
 beta2.flt = xfilter2(:,2);
+figure
 plot(beta2.flt) 
 %cattura tutto l'andamento della serie storica in quanto tempovariabile 
 
 %Smoothing degli stati
 xsmooth2 = smooth(mhat1,yy);
 alpha2.smo = xsmooth2(:,1);
+figure
 plot(alpha2.smo)
 %Lo smoother è il valore ultimo ed è sempre costante
 beta2.smo = xsmooth2(:,2);
+figure
 plot(beta2.smo)
 
 %%% Filtraggio e lisciamento dei valori di y
@@ -1009,19 +1014,23 @@ mhat2 = estimate(m2,yy,params0);
 
 % Filtraggio degli stati
 xfilter3 = filter(mhat2,yy);
-alpha3.flt = xfilter3(:,1);                           
+alpha3.flt = xfilter3(:,1);
+figure
 plot(alpha3.flt) 
 %La stima del coefficiente tende a stabilizzarsi e a convergere
 beta3.flt = xfilter3(:,2);
+figure
 plot(beta3.flt) 
 %cattura tutto l'andamento della serie storica in quanto tempovariabile 
 
 %Smoothing degli stati
 xsmooth3 = smooth(mhat2,yy);
 alpha3.smo = xsmooth3(:,1);
+figure
 plot(alpha3.smo)
 %Lo smoother è il valore ultimo ed è sempre costante
 beta3.smo = xsmooth3(:,2);
+figure
 plot(beta3.smo)
 
 %%% Filtraggio e lisciamento dei valori di y
@@ -1082,7 +1091,14 @@ var(e5_comp)
 
 R2_composizione = 1 - mean(e5_comp.^2) / var(yy)   %ottiene il migliore R^2 in assoluto.
 
-
+f23t = figure('Position',[100,100,1250,675])
+plot(T11.Rif_Mese, yy)
+hold on
+plot(T11.Rif_Mese, t5_comp)  
+legend('Emissioni osservate','Emissioni modello ibrido')
+title('Emissioni stimate con modello ibrido')
+xlabel('Tempo [Mesi]') 
+ylabel('Quantità emessa [Mln di tonnellate]')
 
 %%% analisi residui sul modello statico migliore (modello quadratico)
 %%% Adattamento del modello
@@ -1409,4 +1425,3 @@ subplot(2,2,2)
 parcorr(innov_ARMA)
 title('PACF residui')
 saveas(f34,[pwd '\immagini\34.RegARIMA(2,0,1)_anomalie.png'])
-
