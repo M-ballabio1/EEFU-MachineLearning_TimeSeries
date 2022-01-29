@@ -1,5 +1,12 @@
 # Analysis and forecast of C02 emissions
 
+L'emissioni di C02 è un problema reale che provoca ripercussioni forti in differenti contesti:
+- climatico
+- ambientale
+- salute umana
+
+![emissioni-co2](https://user-images.githubusercontent.com/78934727/151665587-5af47769-b14a-4a4e-8919-12a27be58104.jpg)
+
 Il progetto verte sulla previsione delle emissioni di C02 negli USA utilizzando differenti metodi statistici e di machine learning:
 
 1. metodi di regressione statica (regressioni multiple, stepwise method, Lasso regression)
