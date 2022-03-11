@@ -1,4 +1,4 @@
-# Analysis and forecast of C02 emissions
+# Emission and Energy Forecasting in USA
 
 L'emissioni di C02 è un problema reale che provoca ripercussioni forti in differenti contesti:
 - climatico
